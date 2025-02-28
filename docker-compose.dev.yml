@@ -58,7 +58,7 @@ services:
     container_name: ${PROJECT_NAME}_celery
     <<: *web
     ports: [ ]
-    command: celery -A core worker --beat --scheduler django --loglevel=info
+    command: celery -A core worker --loglevel=INFO
     restart: always
 
 volumes:
