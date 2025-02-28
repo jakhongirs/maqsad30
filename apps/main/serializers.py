@@ -30,3 +30,32 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             "updated_at",
             "current_streak",
         )
+
+
+class ChallengeDetailSerializer(serializers.ModelSerializer):
+    total_completions = serializers.SerializerMethodField()
+
+    def get_total_completions(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj
+        ).first()
+
+        return user_challenge.total_completions if user_challenge else 0
+
+    class Meta:
+        model = Challenge
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "video_instruction_url",
+            "start_time",
+            "end_time",
+            "created_at",
+            "updated_at",
+            "total_completions",
+        )

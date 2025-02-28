@@ -7,6 +7,9 @@ User = get_user_model()
 
 class TelegramAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
+        if request.path.startswith("/swagger/") or request.path.startswith("/redoc/"):
+            return None
+
         telegram_id = request.headers.get("X-Telegram-ID")
 
         if not telegram_id:
