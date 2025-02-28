@@ -1,3 +1,4 @@
+from django.db.models import F, Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
@@ -9,6 +10,7 @@ from apps.main.serializers import (
     AllChallengesCalendarSerializer,
     ChallengeCalendarSerializer,
     ChallengeDetailSerializer,
+    ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
     UserChallengeCompletionSerializer,
 )
@@ -120,3 +122,34 @@ class AllChallengesCalendarAPIView(APIView):
             Challenge.objects.first(), context=context
         )
         return Response(serializer.data)
+
+
+class ChallengeLeaderboardAPIView(ListAPIView):
+    serializer_class = ChallengeLeaderboardSerializer
+    permission_classes = [IsTelegramUser]
+    pagination_class = None
+
+    def get_queryset(self):
+        challenge_id = self.kwargs["id"]
+        try:
+            challenge = Challenge.objects.get(id=challenge_id)
+        except Challenge.DoesNotExist:
+            raise ValidationError("Challenge not found")
+
+        # Get all users by highest streak for this challenge
+        return (
+            Challenge.objects.filter(id=challenge_id)
+            .annotate(
+                user_challenges__highest_streak=F("user_challenges__highest_streak")
+            )
+            .filter(user_challenges__highest_streak__gt=0)
+            .order_by("-user_challenges__highest_streak")
+            .prefetch_related(
+                Prefetch(
+                    "user_challenges",
+                    queryset=UserChallenge.objects.select_related("user").order_by(
+                        "-highest_streak"
+                    ),
+                )
+            )
+        )

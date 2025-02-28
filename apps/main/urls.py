@@ -4,6 +4,7 @@ from apps.main.views import (
     AllChallengesCalendarAPIView,
     ChallengeCalendarAPIView,
     ChallengeDetailAPIView,
+    ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
     UserChallengeCompletionAPIView,
 )
@@ -31,5 +32,10 @@ urlpatterns = [
         "challenges/calendar/",
         AllChallengesCalendarAPIView.as_view(),
         name="all-challenges-calendar",
+    ),
+    path(
+        "challenges/<int:id>/leaderboard/",
+        ChallengeLeaderboardAPIView.as_view(),
+        name="challenge-leaderboard",
     ),
 ]

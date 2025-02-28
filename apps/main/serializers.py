@@ -159,3 +159,28 @@ class AllChallengesCalendarSerializer(serializers.ModelSerializer):
         # Convert dictionary to sorted list
         result = sorted(dates_dict.values(), key=lambda x: x["date"], reverse=True)
         return result
+
+
+class ChallengeLeaderboardSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    highest_streak = serializers.IntegerField(source="user_challenges__highest_streak")
+
+    class Meta:
+        model = Challenge
+        fields = (
+            "user",
+            "highest_streak",
+        )
+
+    def get_user(self, obj):
+        request = self.context.get("request")
+        user = obj.user_challenges.first().user
+        return {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "telegram_username": user.telegram_username,
+            "telegram_photo": request.build_absolute_uri(user.telegram_photo.url)
+            if user.telegram_photo
+            else user.telegram_photo_url,
+        }
