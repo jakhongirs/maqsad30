@@ -170,7 +170,7 @@ class AllChallengesCalendarSerializer(serializers.ModelSerializer):
 
             # Add challenge to each completion date
             for completion_date in completions:
-                date_str = completion_date.strftime("%d.%m.%Y")
+                date_str = completion_date.date().isoformat()
 
                 if date_str not in dates_dict:
                     dates_dict[date_str] = {"date": date_str, "challenges": []}
