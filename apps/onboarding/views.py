@@ -25,6 +25,7 @@ class QuestionListView(generics.ListAPIView):
 class UserAnswersBulkCreateView(generics.CreateAPIView):
     """
     API endpoint to create or update multiple user answers in one request.
+    Also marks the user's onboarding as finished.
     """
 
     serializer_class = UserAnswerCreateSerializer
@@ -35,9 +36,21 @@ class UserAnswersBulkCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user_answers = serializer.save()
 
+        # Mark onboarding as finished
+        user = request.user
+        user.is_onboarding_finished = True
+        user.save(update_fields=["is_onboarding_finished"])
+
         # Use response serializer for the created instances
         response_serializer = UserAnswerResponseSerializer(user_answers, many=True)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "status": "success",
+                "message": "Onboarding completed successfully",
+                "data": response_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class FAQListView(generics.ListAPIView):

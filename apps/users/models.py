@@ -62,6 +62,9 @@ class User(AbstractUser, BaseModel):
         related_name="users",
         verbose_name=_("Timezone"),
     )
+    is_onboarding_finished = models.BooleanField(
+        _("Is onboarding finished"), default=False
+    )
     objects = SoftDeleteUserManager()
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
