@@ -5,8 +5,14 @@ from .serializers import TelegramUserSerializer
 
 
 class TelegramUserRegistrationView(generics.CreateAPIView):
+    """
+    API endpoint for registering new users via Telegram.
+    This endpoint is public and does not require authentication.
+    """
+
     serializer_class = TelegramUserSerializer
     permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
