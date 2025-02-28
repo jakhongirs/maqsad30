@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Answer, Question, UserAnswer
+from .models import FAQ, Answer, Question, UserAnswer
 
 
 @admin.register(Question)
@@ -25,3 +25,11 @@ class UserAnswerAdmin(admin.ModelAdmin):
     list_filter = ["question", "created_at"]
     search_fields = ["user__username", "question__title", "answer__text"]
     raw_id_fields = ["user", "question", "answer"]
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ["question", "order", "is_active"]
+    list_filter = ["is_active"]
+    search_fields = ["question", "answer"]
+    ordering = ["order"]

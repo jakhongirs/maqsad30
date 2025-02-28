@@ -1,8 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 
-from .models import Question
+from .models import FAQ, Question
 from .serializers import (
+    FAQSerializer,
     QuestionSerializer,
     UserAnswerCreateSerializer,
     UserAnswerResponseSerializer,
@@ -35,3 +36,13 @@ class UserAnswersBulkCreateView(generics.CreateAPIView):
         # Use response serializer for the created instances
         response_serializer = UserAnswerResponseSerializer(user_answers, many=True)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class FAQListView(generics.ListAPIView):
+    """
+    API endpoint to list all active FAQs.
+    """
+
+    queryset = FAQ.objects.filter(is_active=True)
+    serializer_class = FAQSerializer
+    permission_classes = [permissions.AllowAny]

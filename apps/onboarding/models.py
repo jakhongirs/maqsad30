@@ -49,3 +49,18 @@ class UserAnswer(BaseModel):
 
     def __str__(self):
         return f"{self.user.username} - {self.question.title}"
+
+
+class FAQ(BaseModel):
+    question = models.CharField(max_length=255)
+    answer = models.TextField()
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["order"]
+        verbose_name = "FAQ"
+        verbose_name_plural = "FAQs"
+
+    def __str__(self):
+        return self.question

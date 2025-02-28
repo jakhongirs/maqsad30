@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Answer, Question, UserAnswer
+from .models import FAQ, Answer, Question, UserAnswer
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -66,3 +66,9 @@ class UserAnswerCreateSerializer(serializers.Serializer):
             user_answers.append(user_answer)
 
         return user_answers
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = ["id", "question", "answer", "order"]

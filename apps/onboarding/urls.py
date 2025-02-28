@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import QuestionListView, UserAnswersBulkCreateView
+from .views import FAQListView, QuestionListView, UserAnswersBulkCreateView
 
 app_name = "onboarding"
 
@@ -11,4 +11,5 @@ urlpatterns = [
         UserAnswersBulkCreateView.as_view(),
         name="user-answer-create",
     ),
+    path("faqs/", FAQListView.as_view(), name="faq-list"),
 ]
