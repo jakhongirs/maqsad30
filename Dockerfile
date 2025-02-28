@@ -8,9 +8,13 @@ WORKDIR /usr/src/app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
+ENV TZ=Asia/Tashkent
 
 # install system dependencies
-RUN apt-get update && apt-get install -y gettext
+RUN apt-get update && \
+    apt-get install -y gettext tzdata && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo $TZ > /etc/timezone
 
 COPY ./requirements/develop.txt develop.txt
 COPY ./requirements/base.txt base.txt

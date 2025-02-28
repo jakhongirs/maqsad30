@@ -36,24 +36,17 @@ services:
       - ./locale:/home/app/web/locale
     env_file:
       - .env
-    environment:
-      - TZ=Asia/Tashkent
     ports:
       - 8000:8000
     depends_on:
       - db
       - redis
 
-#  daphne:
-#    <<: *web
-#    container_name: ${PROJECT_NAME}_ws
-#    command: python -m daphne -b 0.0.0.0 -p 8893 core.asgi:application
-#    ports:
-#      - 8893:8893
-
   redis:
     container_name: ${PROJECT_NAME}_redis
     image: redis:7.2.4-alpine
+    environment:
+      - TZ=Asia/Tashkent
     restart: always
 
   celery:
