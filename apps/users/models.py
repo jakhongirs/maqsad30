@@ -1,17 +1,37 @@
-import os
-from urllib.parse import urlparse
+import io
 
 import requests
 from django.contrib.auth.models import AbstractUser
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from PIL import Image
 
 from apps.common.models import BaseModel
 from apps.users.managers import SoftDeleteUserManager
 
 
+class Timezone(BaseModel):
+    name = models.CharField(_("Name"), max_length=100)
+    offset = models.CharField(_("GMT Offset"), max_length=10)
+
+    def __str__(self):
+        return f"{self.name} ({self.offset})"
+
+    class Meta:
+        verbose_name = _("Timezone")
+        verbose_name_plural = _("Timezones")
+        ordering = ["offset"]
+
+
 class User(AbstractUser, BaseModel):
+    LANGUAGE_CHOICES = (
+        ("en", _("English")),
+        ("uz", _("Uzbek")),
+        ("ru", _("Russian")),
+        ("uz-cy", _("Uzbek Cyrillic")),
+    )
+
     username = models.CharField(
         _("Username"), max_length=150, unique=True, null=True, blank=True
     )
@@ -31,6 +51,17 @@ class User(AbstractUser, BaseModel):
     telegram_photo = models.ImageField(
         _("Telegram Photo"), upload_to="telegram_photos/", null=True, blank=True
     )
+    language = models.CharField(
+        _("Language"), max_length=5, choices=LANGUAGE_CHOICES, default="uz"
+    )
+    timezone = models.ForeignKey(
+        Timezone,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        verbose_name=_("Timezone"),
+    )
     objects = SoftDeleteUserManager()
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -38,19 +69,30 @@ class User(AbstractUser, BaseModel):
     def download_telegram_photo(self):
         if self.telegram_photo_url and not self.telegram_photo:
             try:
-                response = requests.get(self.telegram_photo_url)
-                if response.status_code == 200:
-                    # Get the filename from URL or use telegram_id
-                    url_path = urlparse(self.telegram_photo_url).path
-                    ext = (
-                        os.path.splitext(url_path)[1] or ".jpg"
-                    )  # Default to .jpg if no extension
-                    filename = f"telegram_photo_{self.telegram_id}{ext}"
+                # If it's an SVG URL, modify it to get PNG
+                url = self.telegram_photo_url
+                if url.endswith(".svg"):
+                    # Replace the file extension and add size parameter
+                    url = url.replace("/svg/", "/").replace(".svg", ".jpg")
 
-                    # Save the image
+                response = requests.get(url)
+                if response.status_code == 200:
+                    # Convert to RGB if needed and optimize
+                    image = Image.open(io.BytesIO(response.content))
+                    if image.mode in ("RGBA", "P"):
+                        image = image.convert("RGB")
+
+                    # Save as optimized JPEG
+                    output = io.BytesIO()
+                    image.save(output, format="JPEG", quality=95, optimize=True)
+                    output.seek(0)
+
+                    # Save to model
+                    filename = f"telegram_photo_{self.telegram_id}.jpg"
                     self.telegram_photo.save(
-                        filename, ContentFile(response.content), save=True
+                        filename, ContentFile(output.getvalue()), save=True
                     )
+
             except Exception as e:
                 print(f"Error downloading telegram photo: {e}")
 
