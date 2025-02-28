@@ -12,6 +12,9 @@ User = get_user_model()
 class Challenge(BaseModel):
     title = models.CharField(_("Title"), max_length=255)
     icon = models.ImageField(_("Icon"), upload_to="challenge_icons/")
+    award_icon = models.ImageField(
+        _("Award Icon"), upload_to="award_icons/", null=True, blank=True
+    )
     video_instruction_url = models.URLField(_("Video instruction URL"))
     start_time = models.TimeField(_("Start time"))
     end_time = models.TimeField(_("End time"))
@@ -95,15 +98,24 @@ class UserChallengeCompletion(BaseModel):
 
 
 class ChallengeAward(BaseModel):
-    user_challenge = models.OneToOneField(
-        UserChallenge,
-        on_delete=models.CASCADE,
-        related_name="award",
-        verbose_name=_("User challenge"),
+    challenge = models.OneToOneField(
+        Challenge, on_delete=models.CASCADE, related_name="award", null=True, blank=True
     )
-    awarded_at = models.DateTimeField(_("Awarded at"), auto_now_add=True)
+
+    def __str__(self):
+        return f"Award for {self.challenge.title}"
+
+
+class UserAward(BaseModel):
+    user = models.ForeignKey(
+        "users.User", on_delete=models.CASCADE, related_name="awards"
+    )
+    award = models.ForeignKey(
+        ChallengeAward, on_delete=models.CASCADE, related_name="user_awards"
+    )
 
     class Meta:
-        ordering = ["-awarded_at"]
-        verbose_name = _("Challenge Award")
-        verbose_name_plural = _("Challenge Awards")
+        unique_together = ("user", "award")
+
+    def __str__(self):
+        return f"{self.user.first_name} - {self.award.challenge.title} Award"

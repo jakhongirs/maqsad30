@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from apps.main.models import Challenge, UserChallenge, UserChallengeCompletion
+from apps.main.models import (
+    Challenge,
+    ChallengeAward,
+    UserAward,
+    UserChallenge,
+    UserChallengeCompletion,
+)
 
 
 @admin.register(Challenge)
@@ -28,3 +34,17 @@ class UserChallengeAdmin(admin.ModelAdmin):
 class UserChallengeCompletionAdmin(admin.ModelAdmin):
     list_display = ("user_challenge", "completed_at")
     list_filter = ("completed_at",)
+
+
+@admin.register(ChallengeAward)
+class ChallengeAwardAdmin(admin.ModelAdmin):
+    list_display = ("challenge", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("challenge__title",)
+
+
+@admin.register(UserAward)
+class UserAwardAdmin(admin.ModelAdmin):
+    list_display = ("user", "award", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("user__username", "award__challenge__title")

@@ -1,7 +1,13 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.main.models import Challenge, UserChallenge, UserChallengeCompletion
+from apps.main.models import (
+    Challenge,
+    ChallengeAward,
+    UserAward,
+    UserChallenge,
+    UserChallengeCompletion,
+)
 
 
 class ChallengeListSerializer(serializers.ModelSerializer):
@@ -222,3 +228,32 @@ class Challenge30DaysPlusStreakSerializer(serializers.ModelSerializer):
             }
             for uc in user_challenges
         ]
+
+
+class ChallengeAwardSerializer(serializers.ModelSerializer):
+    challenge_title = serializers.CharField(source="challenge.title", read_only=True)
+    award_icon = serializers.SerializerMethodField()
+    is_user_awarded = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChallengeAward
+        fields = (
+            "id",
+            "challenge_title",
+            "award_icon",
+            "is_user_awarded",
+            "created_at",
+        )
+
+    def get_award_icon(self, obj):
+        request = self.context.get("request")
+        if obj.challenge.award_icon:
+            return request.build_absolute_uri(obj.challenge.award_icon.url)
+        return None
+
+    def get_is_user_awarded(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        return UserAward.objects.filter(user=request.user, award=obj).exists()

@@ -4,6 +4,7 @@ from apps.main.views import (
     AllChallengesCalendarAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
+    ChallengeAwardListView,
     ChallengeCalendarAPIView,
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
@@ -49,5 +50,10 @@ urlpatterns = [
         "challenges/<int:id>/30-days-plus-streaks/",
         Challenge30DaysPlusStreakDetailView.as_view(),
         name="challenge-30-days-plus-streaks-detail",
+    ),
+    path(
+        "challenges/awards/",
+        ChallengeAwardListView.as_view(),
+        name="challenge-awards",
     ),
 ]

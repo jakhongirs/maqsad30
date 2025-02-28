@@ -5,10 +5,16 @@ from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.main.models import Challenge, UserChallenge, UserChallengeCompletion
+from apps.main.models import (
+    Challenge,
+    ChallengeAward,
+    UserChallenge,
+    UserChallengeCompletion,
+)
 from apps.main.serializers import (
     AllChallengesCalendarSerializer,
     Challenge30DaysPlusStreakSerializer,
+    ChallengeAwardSerializer,
     ChallengeCalendarSerializer,
     ChallengeDetailSerializer,
     ChallengeLeaderboardSerializer,
@@ -202,3 +208,9 @@ class Challenge30DaysPlusStreakDetailView(RetrieveAPIView):
             raise ValidationError(
                 "No users have achieved 30+ days streak in this challenge"
             )
+
+
+class ChallengeAwardListView(ListAPIView):
+    serializer_class = ChallengeAwardSerializer
+    permission_classes = [IsTelegramUser]
+    queryset = ChallengeAward.objects.select_related("challenge").all()
