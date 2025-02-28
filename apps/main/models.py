@@ -12,6 +12,9 @@ User = get_user_model()
 class Challenge(BaseModel):
     title = models.CharField(_("Title"), max_length=255)
     icon = models.ImageField(_("Icon"), upload_to="challenge_icons/")
+    calendar_icon = models.ImageField(
+        _("Calendar Icon"), upload_to="challenge_calendar_icons/", null=True, blank=True
+    )
     award_icon = models.ImageField(
         _("Award Icon"), upload_to="award_icons/", null=True, blank=True
     )

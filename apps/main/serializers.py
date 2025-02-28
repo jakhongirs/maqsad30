@@ -79,14 +79,22 @@ class UserChallengeCompletionSerializer(serializers.ModelSerializer):
 
 class ChallengeCalendarSerializer(serializers.ModelSerializer):
     completion_dates = serializers.SerializerMethodField()
+    calendar_icon = serializers.SerializerMethodField()
 
     class Meta:
         model = Challenge
         fields = (
             "id",
             "title",
+            "calendar_icon",
             "completion_dates",
         )
+
+    def get_calendar_icon(self, obj):
+        request = self.context.get("request")
+        if obj.calendar_icon:
+            return request.build_absolute_uri(obj.calendar_icon.url)
+        return request.build_absolute_uri(obj.icon.url) if obj.icon else None
 
     def get_completion_dates(self, obj):
         request = self.context.get("request")
@@ -153,14 +161,17 @@ class AllChallengesCalendarSerializer(serializers.ModelSerializer):
                 if date_str not in dates_dict:
                     dates_dict[date_str] = {"date": date_str, "challenges": []}
 
+                challenge = user_challenge.challenge
+                icon_url = None
+                if challenge.calendar_icon:
+                    icon_url = request.build_absolute_uri(challenge.calendar_icon.url)
+                elif challenge.icon:
+                    icon_url = request.build_absolute_uri(challenge.icon.url)
+
                 dates_dict[date_str]["challenges"].append(
                     {
-                        "title": user_challenge.challenge.title,
-                        "icon": request.build_absolute_uri(
-                            user_challenge.challenge.icon.url
-                        )
-                        if user_challenge.challenge.icon
-                        else None,
+                        "title": challenge.title,
+                        "calendar_icon": icon_url,
                     }
                 )
 
