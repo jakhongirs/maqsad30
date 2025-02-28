@@ -152,6 +152,13 @@ LOGGING = {
 
 LANGUAGE_CODE = "en-us"
 
+LANGUAGES = (
+    ("en", "English"),
+    ("uz", "Uzbek"),
+    ("ru", "Russian"),
+    ("uz-cy", "Uzbek (Cyrillic)"),
+)
+
 TIME_ZONE = "Asia/Tashkent"
 
 USE_I18N = True

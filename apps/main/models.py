@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from apps.common.models import BaseModel
 
@@ -9,39 +10,51 @@ User = get_user_model()
 
 
 class Challenge(BaseModel):
-    title = models.CharField(max_length=255)
-    icon = models.ImageField(upload_to="challenge_icons/")
-    video_instruction_url = models.URLField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    title = models.CharField(_("Title"), max_length=255)
+    icon = models.ImageField(_("Icon"), upload_to="challenge_icons/")
+    video_instruction_url = models.URLField(_("Video instruction URL"))
+    start_time = models.TimeField(_("Start time"))
+    end_time = models.TimeField(_("End time"))
 
     def clean(self):
         if self.start_time >= self.end_time:
-            raise ValidationError("End time must be after start time")
+            raise ValidationError(_("End time must be after start time"))
 
     def __str__(self):
         return self.title
 
     class Meta:
         ordering = ["-created_at"]
+        verbose_name = _("Challenge")
+        verbose_name_plural = _("Challenges")
 
 
 class UserChallenge(BaseModel):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="user_challenges"
+        User,
+        on_delete=models.CASCADE,
+        related_name="user_challenges",
+        verbose_name=_("User"),
     )
     challenge = models.ForeignKey(
-        Challenge, on_delete=models.CASCADE, related_name="user_challenges"
+        Challenge,
+        on_delete=models.CASCADE,
+        related_name="user_challenges",
+        verbose_name=_("Challenge"),
     )
-    current_streak = models.PositiveIntegerField(default=0)
-    highest_streak = models.PositiveIntegerField(default=0)
-    total_completions = models.PositiveIntegerField(default=0)
-    last_completion_date = models.DateField(null=True, blank=True)
-    started_at = models.DateTimeField(auto_now_add=True)
+    current_streak = models.PositiveIntegerField(_("Current streak"), default=0)
+    highest_streak = models.PositiveIntegerField(_("Highest streak"), default=0)
+    total_completions = models.PositiveIntegerField(_("Total completions"), default=0)
+    last_completion_date = models.DateField(
+        _("Last completion date"), null=True, blank=True
+    )
+    started_at = models.DateTimeField(_("Started at"), auto_now_add=True)
 
     class Meta:
         unique_together = ["user", "challenge"]
         ordering = ["-current_streak", "-highest_streak"]
+        verbose_name = _("User Challenge")
+        verbose_name_plural = _("User Challenges")
 
     def update_streak(self, completion_date):
         if self.last_completion_date:
@@ -68,19 +81,29 @@ class UserChallenge(BaseModel):
 
 class ChallengeCompletion(BaseModel):
     user_challenge = models.ForeignKey(
-        UserChallenge, on_delete=models.CASCADE, related_name="completions"
+        UserChallenge,
+        on_delete=models.CASCADE,
+        related_name="completions",
+        verbose_name=_("User challenge"),
     )
-    completed_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(_("Completed at"), auto_now_add=True)
 
     class Meta:
         ordering = ["-completed_at"]
+        verbose_name = _("Challenge Completion")
+        verbose_name_plural = _("Challenge Completions")
 
 
 class ChallengeAward(BaseModel):
     user_challenge = models.OneToOneField(
-        UserChallenge, on_delete=models.CASCADE, related_name="award"
+        UserChallenge,
+        on_delete=models.CASCADE,
+        related_name="award",
+        verbose_name=_("User challenge"),
     )
-    awarded_at = models.DateTimeField(auto_now_add=True)
+    awarded_at = models.DateTimeField(_("Awarded at"), auto_now_add=True)
 
     class Meta:
         ordering = ["-awarded_at"]
+        verbose_name = _("Challenge Award")
+        verbose_name_plural = _("Challenge Awards")
