@@ -16,6 +16,13 @@ class Challenge(BaseModel):
         _("Award Icon"), upload_to="award_icons/", null=True, blank=True
     )
     video_instruction_url = models.URLField(_("Video instruction URL"))
+    video_instruction_title = models.CharField(
+        _("Video instruction title"),
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=_("Title for the instruction video"),
+    )
     start_time = models.TimeField(_("Start time"))
     end_time = models.TimeField(_("End time"))
 

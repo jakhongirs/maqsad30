@@ -31,6 +31,7 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             "title",
             "icon",
             "video_instruction_url",
+            "video_instruction_title",
             "start_time",
             "end_time",
             "created_at",
