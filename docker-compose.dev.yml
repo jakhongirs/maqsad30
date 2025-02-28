@@ -36,6 +36,9 @@ services:
       - ./locale:/home/app/web/locale
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Tashkent
+      - PGTZ=Asia/Tashkent
     ports:
       - 8000:8000
     depends_on:
