@@ -16,6 +16,8 @@ services:
       - POSTGRES_DB=${DB_NAME}
       - POSTGRES_HOST=${DB_HOST}
       - POSTGRES_PORT=${DB_PORT}
+      - TZ=Asia/Tashkent
+      - PGTZ=Asia/Tashkent
     restart: always
 
   web: &web

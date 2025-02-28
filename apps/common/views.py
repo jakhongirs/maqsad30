@@ -59,8 +59,6 @@ class ServerTimeView(APIView):
         return Response(
             {
                 "current_time": current_time,
-                "timezone": settings.TIME_ZONE,
-                "is_dst": timezone.is_dst(),
                 "formatted_time": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
             }
         )
