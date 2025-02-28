@@ -1,6 +1,12 @@
 from django.urls import path
 
-from apps.main.views import ChallengeDetailAPIView, ChallengeListAPIView
+from apps.main.views import (
+    AllChallengesCalendarAPIView,
+    ChallengeCalendarAPIView,
+    ChallengeDetailAPIView,
+    ChallengeListAPIView,
+    UserChallengeCompletionAPIView,
+)
 
 app_name = "main"
 
@@ -10,5 +16,20 @@ urlpatterns = [
         "challenges/<int:id>/",
         ChallengeDetailAPIView.as_view(),
         name="challenge-detail",
+    ),
+    path(
+        "challenges/<int:id>/complete/",
+        UserChallengeCompletionAPIView.as_view(),
+        name="challenge-complete",
+    ),
+    path(
+        "challenges/<int:id>/calendar/",
+        ChallengeCalendarAPIView.as_view(),
+        name="challenge-calendar",
+    ),
+    path(
+        "challenges/calendar/",
+        AllChallengesCalendarAPIView.as_view(),
+        name="all-challenges-calendar",
     ),
 ]

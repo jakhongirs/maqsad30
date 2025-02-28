@@ -79,7 +79,7 @@ class UserChallenge(BaseModel):
         self.save()
 
 
-class ChallengeCompletion(BaseModel):
+class UserChallengeCompletion(BaseModel):
     user_challenge = models.ForeignKey(
         UserChallenge,
         on_delete=models.CASCADE,
@@ -90,8 +90,8 @@ class ChallengeCompletion(BaseModel):
 
     class Meta:
         ordering = ["-completed_at"]
-        verbose_name = _("Challenge Completion")
-        verbose_name_plural = _("Challenge Completions")
+        verbose_name = _("User Challenge Completion")
+        verbose_name_plural = _("User Challenge Completions")
 
 
 class ChallengeAward(BaseModel):
