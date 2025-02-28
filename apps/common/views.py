@@ -2,9 +2,11 @@ import redis
 from celery import Celery
 from celery.exceptions import OperationalError
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 app = Celery("core")
 app.config_from_object("django.conf:settings", namespace="CELERY")
@@ -48,4 +50,17 @@ def health_check_celery(request):
         return Response(
             {"status": "error", "message": "Celery OperationalError occurred."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+class ServerTimeView(APIView):
+    def get(self, request):
+        current_time = timezone.now()
+        return Response(
+            {
+                "current_time": current_time,
+                "timezone": settings.TIME_ZONE,
+                "is_dst": timezone.is_dst(),
+                "formatted_time": current_time.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            }
         )
