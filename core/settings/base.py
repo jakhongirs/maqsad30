@@ -34,7 +34,9 @@ DJANGO_APPS = [
 
 CUSTOM_APPS = [
     "apps.common",
-    "apps.users"
+    "apps.users",
+    "apps.onboarding",
+    "apps.main",
 ]
 
 THIRD_PARTY_APPS = [
@@ -42,7 +44,7 @@ THIRD_PARTY_APPS = [
     "drf_yasg",
     "corsheaders",
     "modeltranslation",
-    'nplusone.ext.django',
+    "nplusone.ext.django",
 ]
 
 REST_FRAMEWORK = {
@@ -69,7 +71,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    'nplusone.ext.django.NPlusOneMiddleware',
+    "nplusone.ext.django.NPlusOneMiddleware",
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -127,20 +129,20 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = "users.User"
 
-NPLUSONE_LOGGER = logging.getLogger('nplusone')
+NPLUSONE_LOGGER = logging.getLogger("nplusone")
 NPLUSONE_LOG_LEVEL = logging.WARN
 
 LOGGING = {
-    'version': 1,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    "version": 1,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
     },
-    'loggers': {
-        'nplusone': {
-            'handlers': ['console'],
-            'level': 'WARN',
+    "loggers": {
+        "nplusone": {
+            "handlers": ["console"],
+            "level": "WARN",
         },
     },
 }
