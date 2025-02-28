@@ -1,5 +1,7 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics, status
 from rest_framework.response import Response
+
+from apps.users.permissions import IsTelegramUser
 
 from .models import FAQ, Question
 from .serializers import (
@@ -17,7 +19,7 @@ class QuestionListView(generics.ListAPIView):
 
     queryset = Question.objects.filter(is_active=True).prefetch_related("answers")
     serializer_class = QuestionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTelegramUser]
 
 
 class UserAnswersBulkCreateView(generics.CreateAPIView):
@@ -26,7 +28,7 @@ class UserAnswersBulkCreateView(generics.CreateAPIView):
     """
 
     serializer_class = UserAnswerCreateSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsTelegramUser]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -45,4 +47,4 @@ class FAQListView(generics.ListAPIView):
 
     queryset = FAQ.objects.filter(is_active=True)
     serializer_class = FAQSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsTelegramUser]
