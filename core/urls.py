@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/common/", include("apps.common.urls", namespace="common")),
     path("api/v1/onboarding/", include("apps.onboarding.urls", namespace="onboarding")),
     path("api/v1/main/", include("apps.main.urls", namespace="main")),
+    path("api/v1/users/", include("apps.users.urls", namespace="users")),
 ]
 
 urlpatterns += swagger_urlpatterns
