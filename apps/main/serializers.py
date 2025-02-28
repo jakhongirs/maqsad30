@@ -42,6 +42,7 @@ class ChallengeListSerializer(serializers.ModelSerializer):
 
 class ChallengeDetailSerializer(serializers.ModelSerializer):
     total_completions = serializers.SerializerMethodField()
+    is_completed_today = serializers.SerializerMethodField()
 
     def get_total_completions(self, obj):
         request = self.context.get("request")
@@ -53,6 +54,18 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
         ).first()
 
         return user_challenge.total_completions if user_challenge else 0
+
+    def get_is_completed_today(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        today = timezone.now().date()
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, last_completion_date=today
+        ).exists()
+
+        return user_challenge
 
     class Meta:
         model = Challenge
@@ -67,6 +80,7 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "total_completions",
+            "is_completed_today",
         )
 
 
