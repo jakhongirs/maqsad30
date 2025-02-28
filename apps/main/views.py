@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from apps.main.models import Challenge, UserChallenge, UserChallengeCompletion
 from apps.main.serializers import (
     AllChallengesCalendarSerializer,
+    Challenge30DaysPlusStreakSerializer,
     ChallengeCalendarSerializer,
     ChallengeDetailSerializer,
     ChallengeLeaderboardSerializer,
@@ -153,3 +154,51 @@ class ChallengeLeaderboardAPIView(ListAPIView):
                 )
             )
         )
+
+
+class Challenge30DaysPlusStreakView(ListAPIView):
+    serializer_class = Challenge30DaysPlusStreakSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        return (
+            Challenge.objects.filter(user_challenges__highest_streak__gte=30)
+            .distinct()
+            .prefetch_related(
+                Prefetch(
+                    "user_challenges",
+                    queryset=UserChallenge.objects.filter(highest_streak__gte=30)
+                    .select_related("user")
+                    .order_by("-highest_streak"),
+                )
+            )
+        )
+
+
+class Challenge30DaysPlusStreakDetailView(RetrieveAPIView):
+    serializer_class = Challenge30DaysPlusStreakSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_object(self):
+        challenge_id = self.kwargs["id"]
+        try:
+            return (
+                Challenge.objects.filter(
+                    id=challenge_id, user_challenges__highest_streak__gte=30
+                )
+                .distinct()
+                .prefetch_related(
+                    Prefetch(
+                        "user_challenges",
+                        queryset=UserChallenge.objects.filter(highest_streak__gte=30)
+                        .select_related("user")
+                        .order_by("-highest_streak"),
+                    )
+                )
+                .get()
+            )
+        except Challenge.DoesNotExist:
+            raise ValidationError(
+                "No users have achieved 30+ days streak in this challenge"
+            )

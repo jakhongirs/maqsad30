@@ -184,3 +184,41 @@ class ChallengeLeaderboardSerializer(serializers.ModelSerializer):
             if user.telegram_photo
             else user.telegram_photo_url,
         }
+
+
+class Challenge30DaysPlusStreakSerializer(serializers.ModelSerializer):
+    leaderboard = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Challenge
+        fields = (
+            "title",
+            "icon",
+            "leaderboard",
+        )
+
+    def get_leaderboard(self, obj):
+        request = self.context.get("request")
+        user_challenges = (
+            UserChallenge.objects.filter(challenge=obj, highest_streak__gte=30)
+            .select_related("user")
+            .order_by("-highest_streak")
+        )
+
+        return [
+            {
+                "user": {
+                    "id": uc.user.id,
+                    "first_name": uc.user.first_name,
+                    "last_name": uc.user.last_name,
+                    "telegram_username": uc.user.telegram_username,
+                    "telegram_photo": request.build_absolute_uri(
+                        uc.user.telegram_photo.url
+                    )
+                    if uc.user.telegram_photo
+                    else uc.user.telegram_photo_url,
+                },
+                "highest_streak": uc.highest_streak,
+            }
+            for uc in user_challenges
+        ]
