@@ -69,11 +69,21 @@ class UserProfileUpdateAPIView(UpdateAPIView):
 
 
 class TimezoneListAPIView(ListAPIView):
-    queryset = Timezone.objects.all()
     serializer_class = TimezoneSerializer
     permission_classes = [IsTelegramUser]
     filter_backends = [SearchFilter]
     search_fields = ["name", "name_en", "name_uz", "name_ru"]
+
+    def get_queryset(self):
+        queryset = Timezone.objects.all()
+
+        # Get user's timezone
+        user_timezone = self.request.user.timezone
+        if user_timezone:
+            # Exclude user's timezone from the main queryset and add it first
+            return [user_timezone] + list(queryset.exclude(id=user_timezone.id))
+
+        return queryset
 
 
 class LoadTimezoneDataAPIView(APIView):
