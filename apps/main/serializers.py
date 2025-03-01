@@ -225,6 +225,7 @@ class Challenge30DaysPlusStreakSerializer(serializers.ModelSerializer):
     class Meta:
         model = Challenge
         fields = (
+            "id",
             "title",
             "icon",
             "leaderboard",
