@@ -1,3 +1,4 @@
+from django.db.models import Case, IntegerField, Value, When
 from rest_framework import generics, permissions, status
 from rest_framework.filters import SearchFilter
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
@@ -76,12 +77,17 @@ class TimezoneListAPIView(ListAPIView):
 
     def get_queryset(self):
         queryset = Timezone.objects.all()
-
-        # Get user's timezone
         user_timezone = self.request.user.timezone
+
         if user_timezone:
-            # Exclude user's timezone from the main queryset and add it first
-            return [user_timezone] + list(queryset.exclude(id=user_timezone.id))
+            # Use Case/When to prioritize user's timezone
+            return queryset.annotate(
+                is_user_timezone=Case(
+                    When(id=user_timezone.id, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("is_user_timezone")
 
         return queryset
 
