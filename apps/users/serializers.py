@@ -45,13 +45,6 @@ class TimezoneSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     timezone = TimezoneSerializer(read_only=True)
-    timezone_id = serializers.PrimaryKeyRelatedField(
-        queryset=Timezone.objects.all(),
-        source="timezone",
-        write_only=True,
-        required=False,
-        allow_null=True,
-    )
     telegram_photo = serializers.SerializerMethodField()
 
     def get_telegram_photo(self, obj):
@@ -69,6 +62,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "telegram_photo",
             "language",
             "timezone",
+        )
+        read_only_fields = fields
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    timezone_id = serializers.PrimaryKeyRelatedField(
+        queryset=Timezone.objects.all(),
+        source="timezone",
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = User
+        fields = (
+            "first_name",
+            "last_name",
+            "language",
             "timezone_id",
         )
-        read_only_fields = ("telegram_username", "telegram_photo")

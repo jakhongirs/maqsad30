@@ -1,6 +1,10 @@
 from django.urls import path
 
-from .views import TelegramUserRegistrationView, UserProfileAPIView
+from .views import (
+    TelegramUserRegistrationView,
+    UserProfileRetrieveAPIView,
+    UserProfileUpdateAPIView,
+)
 
 app_name = "users"
 
@@ -10,5 +14,10 @@ urlpatterns = [
         TelegramUserRegistrationView.as_view(),
         name="telegram-register",
     ),
-    path("profile/", UserProfileAPIView.as_view(), name="user-profile"),
+    path("profile/", UserProfileRetrieveAPIView.as_view(), name="user-profile"),
+    path(
+        "profile/update/",
+        UserProfileUpdateAPIView.as_view(),
+        name="user-profile-update",
+    ),
 ]
