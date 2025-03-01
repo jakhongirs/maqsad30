@@ -62,6 +62,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "telegram_photo",
             "language",
             "timezone",
+            "is_onboarding_finished",
         )
         read_only_fields = fields
 
