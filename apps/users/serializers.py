@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from apps.users.models import Timezone, User
+
 User = get_user_model()
 
 
@@ -33,3 +35,40 @@ class TelegramUserSerializer(serializers.ModelSerializer):
             },
         )
         return user
+
+
+class TimezoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Timezone
+        fields = ("id", "name", "offset")
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    timezone = TimezoneSerializer(read_only=True)
+    timezone_id = serializers.PrimaryKeyRelatedField(
+        queryset=Timezone.objects.all(),
+        source="timezone",
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    telegram_photo = serializers.SerializerMethodField()
+
+    def get_telegram_photo(self, obj):
+        request = self.context.get("request")
+        if obj.telegram_photo:
+            return request.build_absolute_uri(obj.telegram_photo.url)
+        return obj.telegram_photo_url
+
+    class Meta:
+        model = User
+        fields = (
+            "first_name",
+            "last_name",
+            "telegram_username",
+            "telegram_photo",
+            "language",
+            "timezone",
+            "timezone_id",
+        )
+        read_only_fields = ("telegram_username", "telegram_photo")

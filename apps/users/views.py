@@ -1,7 +1,10 @@
 from rest_framework import generics, permissions, status
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 
-from .serializers import TelegramUserSerializer
+from apps.users.permissions import IsTelegramUser
+
+from .serializers import TelegramUserSerializer, UserProfileSerializer
 
 
 class TelegramUserRegistrationView(generics.CreateAPIView):
@@ -27,3 +30,11 @@ class TelegramUserRegistrationView(generics.CreateAPIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class UserProfileAPIView(RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_object(self):
+        return self.request.user
