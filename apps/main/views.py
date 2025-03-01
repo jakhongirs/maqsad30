@@ -59,9 +59,10 @@ class UserChallengeCompletionAPIView(CreateAPIView):
         except Challenge.DoesNotExist:
             raise ValidationError("Challenge not found")
 
-        # Get current time and date in user's timezone
-        current_time = timezone.localtime().time()
-        current_date = timezone.localdate()
+        # Get current time and date in UTC
+        now = timezone.now()
+        current_time = now.time()
+        current_date = now.date()
 
         # Check if current time is within the challenge time window
         if current_time < challenge.start_time or current_time > challenge.end_time:
