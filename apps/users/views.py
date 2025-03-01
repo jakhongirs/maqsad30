@@ -74,7 +74,7 @@ class TimezoneListAPIView(ListAPIView):
 
 
 class LoadTimezoneDataAPIView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsTelegramUser]
 
     def post(self, request):
         try:
