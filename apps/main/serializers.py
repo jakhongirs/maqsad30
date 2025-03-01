@@ -197,10 +197,10 @@ class AllChallengesCalendarSerializer(serializers.ModelSerializer):
 
 class ChallengeLeaderboardSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
-    highest_streak = serializers.IntegerField(source="user_challenges__highest_streak")
+    highest_streak = serializers.IntegerField()
 
     class Meta:
-        model = Challenge
+        model = UserChallenge
         fields = (
             "user",
             "highest_streak",
@@ -208,7 +208,7 @@ class ChallengeLeaderboardSerializer(serializers.ModelSerializer):
 
     def get_user(self, obj):
         request = self.context.get("request")
-        user = obj.user_challenges.first().user
+        user = obj.user
         return {
             "id": user.id,
             "first_name": user.first_name,
