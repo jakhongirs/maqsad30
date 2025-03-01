@@ -38,15 +38,6 @@ class TelegramUserSerializer(serializers.ModelSerializer):
 
 
 class TimezoneSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-
-    def get_name(self, obj):
-        request = self.context.get("request")
-        if request:
-            language = request.LANGUAGE_CODE
-            return getattr(obj, f"name_{language}", obj.name)
-        return obj.name
-
     class Meta:
         model = Timezone
         fields = ("id", "name", "offset")
