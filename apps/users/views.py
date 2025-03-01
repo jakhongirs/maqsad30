@@ -1,11 +1,14 @@
 from rest_framework import generics, permissions, status
-from rest_framework.generics import RetrieveAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from apps.users.models import Timezone
 from apps.users.permissions import IsTelegramUser
 
 from .serializers import (
     TelegramUserSerializer,
+    TimezoneSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
 )
@@ -62,3 +65,47 @@ class UserProfileUpdateAPIView(UpdateAPIView):
         return Response(
             UserProfileSerializer(instance, context={"request": request}).data
         )
+
+
+class TimezoneListAPIView(ListAPIView):
+    serializer_class = TimezoneSerializer
+    queryset = Timezone.objects.all()
+    permission_classes = [IsTelegramUser]
+
+
+class LoadTimezoneDataAPIView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        try:
+            import json
+
+            from django.conf import settings
+
+            # Read the JSON file
+            with open("apps/users/fixtures/timezone.json", encoding="utf-8") as file:
+                timezones = json.load(file)
+
+            # Clear existing timezones
+            Timezone.objects.all().delete()
+
+            # Create new timezone objects
+            for index, tz_data in enumerate(timezones, 1):
+                timezone = Timezone.objects.create(offset=tz_data["offset"])
+                # Set the same name for all languages
+                for lang_code, _ in settings.LANGUAGES:
+                    setattr(timezone, f"name_{lang_code}", tz_data["name"])
+                timezone.save()
+
+            return Response(
+                {
+                    "status": "success",
+                    "message": f"{len(timezones)} timezones loaded successfully",
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
