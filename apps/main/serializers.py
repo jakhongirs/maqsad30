@@ -224,12 +224,7 @@ class Challenge30DaysPlusStreakSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Challenge
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "leaderboard",
-        )
+        fields = ("id", "title", "icon", "leaderboard", "created_at")
 
     def get_leaderboard(self, obj):
         request = self.context.get("request")
