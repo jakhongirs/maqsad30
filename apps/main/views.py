@@ -1,4 +1,4 @@
-from django.db.models import F, Prefetch
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
@@ -147,22 +147,13 @@ class ChallengeLeaderboardAPIView(ListAPIView):
         except Challenge.DoesNotExist:
             raise ValidationError("Challenge not found")
 
-        # Get all users by highest streak for this challenge
+        # Query UserChallenge directly to get unique entries
         return (
-            Challenge.objects.filter(id=challenge_id)
-            .annotate(
-                user_challenges__highest_streak=F("user_challenges__highest_streak")
+            UserChallenge.objects.filter(
+                challenge_id=challenge_id, highest_streak__gt=0
             )
-            .filter(user_challenges__highest_streak__gt=0)
-            .order_by("-user_challenges__highest_streak")
-            .prefetch_related(
-                Prefetch(
-                    "user_challenges",
-                    queryset=UserChallenge.objects.select_related("user").order_by(
-                        "-highest_streak"
-                    ),
-                )
-            )
+            .select_related("user")
+            .order_by("-highest_streak")
         )
 
 
