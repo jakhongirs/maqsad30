@@ -4,6 +4,7 @@ from rest_framework import serializers
 from apps.main.models import (
     Challenge,
     ChallengeAward,
+    Tournament,
     UserAward,
     UserChallenge,
     UserChallengeCompletion,
@@ -280,3 +281,34 @@ class ChallengeAwardSerializer(serializers.ModelSerializer):
             return False
 
         return UserAward.objects.filter(user=request.user, award=obj).exists()
+
+
+class TournamentListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tournament
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "finish_date",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+
+
+class TournamentDetailSerializer(serializers.ModelSerializer):
+    challenges = ChallengeListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Tournament
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "finish_date",
+            "is_active",
+            "challenges",
+            "created_at",
+            "updated_at",
+        )

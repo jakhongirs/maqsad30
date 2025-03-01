@@ -42,6 +42,26 @@ class Challenge(BaseModel):
         verbose_name_plural = _("Challenges")
 
 
+class Tournament(BaseModel):
+    title = models.CharField(_("Title"), max_length=255)
+    icon = models.ImageField(_("Icon"), upload_to="tournament_icons/")
+    finish_date = models.DateTimeField(_("Finish Date"))
+    challenges = models.ManyToManyField(
+        Challenge,
+        related_name="tournaments",
+        verbose_name=_("Challenges"),
+    )
+    is_active = models.BooleanField(_("Is Active"), default=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Tournament")
+        verbose_name_plural = _("Tournaments")
+
+
 class UserChallenge(BaseModel):
     user = models.ForeignKey(
         User,

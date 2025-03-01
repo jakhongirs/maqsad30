@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from apps.main.models import (
     Challenge,
     ChallengeAward,
+    Tournament,
     UserChallenge,
     UserChallengeCompletion,
 )
@@ -19,6 +20,8 @@ from apps.main.serializers import (
     ChallengeDetailSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
+    TournamentDetailSerializer,
+    TournamentListSerializer,
     UserChallengeCompletionSerializer,
 )
 from apps.users.permissions import IsTelegramUser
@@ -214,3 +217,21 @@ class ChallengeAwardListView(ListAPIView):
     serializer_class = ChallengeAwardSerializer
     permission_classes = [IsTelegramUser]
     queryset = ChallengeAward.objects.select_related("challenge").all()
+
+
+class TournamentListAPIView(ListAPIView):
+    serializer_class = TournamentListSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        now = timezone.now()
+        return Tournament.objects.filter(is_active=True, finish_date__gte=now).order_by(
+            "-created_at"
+        )
+
+
+class TournamentDetailAPIView(RetrieveAPIView):
+    queryset = Tournament.objects.prefetch_related("challenges")
+    serializer_class = TournamentDetailSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"

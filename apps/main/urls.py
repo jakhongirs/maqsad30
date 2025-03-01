@@ -9,12 +9,22 @@ from apps.main.views import (
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
+    TournamentDetailAPIView,
+    TournamentListAPIView,
     UserChallengeCompletionAPIView,
 )
 
 app_name = "main"
 
 urlpatterns = [
+    # Tournament URLs
+    path("tournaments/", TournamentListAPIView.as_view(), name="tournament-list"),
+    path(
+        "tournaments/<int:id>/",
+        TournamentDetailAPIView.as_view(),
+        name="tournament-detail",
+    ),
+    # Challenge URLs
     path("challenges/", ChallengeListAPIView.as_view(), name="challenge-list"),
     path(
         "challenges/<int:id>/",

@@ -3,6 +3,7 @@ from django.contrib import admin
 from apps.main.models import (
     Challenge,
     ChallengeAward,
+    Tournament,
     UserAward,
     UserChallenge,
     UserChallengeCompletion,
@@ -48,3 +49,10 @@ class UserAwardAdmin(admin.ModelAdmin):
     list_display = ("user", "award", "created_at")
     list_filter = ("created_at",)
     search_fields = ("user__username", "award__challenge__title")
+
+
+@admin.register(Tournament)
+class TournamentAdmin(admin.ModelAdmin):
+    list_display = ("title", "finish_date", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("title",)
