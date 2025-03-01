@@ -1,4 +1,6 @@
+from django.db.models import Q
 from rest_framework import generics, permissions, status
+from rest_framework.filters import SearchFilter
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -69,8 +71,21 @@ class UserProfileUpdateAPIView(UpdateAPIView):
 
 class TimezoneListAPIView(ListAPIView):
     serializer_class = TimezoneSerializer
-    queryset = Timezone.objects.all()
     permission_classes = [IsTelegramUser]
+    filter_backends = [SearchFilter]
+    search_fields = ["name", "name_en", "name_uz", "name_ru", "name_uz_cy"]
+
+    def get_queryset(self):
+        queryset = Timezone.objects.all()
+        search = self.request.query_params.get("search", None)
+        if search:
+            queryset = queryset.filter(
+                Q(name_en__icontains=search)
+                | Q(name_uz__icontains=search)
+                | Q(name_ru__icontains=search)
+                | Q(name_uz_cy__icontains=search)
+            )
+        return queryset
 
 
 class LoadTimezoneDataAPIView(APIView):
@@ -92,8 +107,10 @@ class LoadTimezoneDataAPIView(APIView):
             # Create new timezone objects
             for index, tz_data in enumerate(timezones, 1):
                 timezone = Timezone.objects.create(offset=tz_data["offset"])
-                # Set the same name for all languages
-                for lang_code, _ in settings.LANGUAGES:
+
+                # Set the same name for all languages including uz-cy
+                languages = list(dict(settings.LANGUAGES).keys()) + ["uz-cy"]
+                for lang_code in languages:
                     setattr(timezone, f"name_{lang_code}", tz_data["name"])
                 timezone.save()
 
