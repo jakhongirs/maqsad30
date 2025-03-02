@@ -30,20 +30,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_member = await check_channel_membership(update, context)
 
     if not is_member:
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        text="Kanalga qo'shilish", url="https://t.me/+67Qw_YtRsLgxOTMy"
-                    )
-                ]
-            ]
-        )
-        await update.message.reply_text(
-            "*Maqsad Club botiga xush kelibsiz!*\nAfsuski \"Maqsad club\" a'zosi bo'lmaganiz uchun botdan foydalana olmaysiz.",
-            reply_markup=keyboard,
-            parse_mode=ParseMode.MARKDOWN,
-        )
         return
 
     # If user is a member, show welcome message with web app button
