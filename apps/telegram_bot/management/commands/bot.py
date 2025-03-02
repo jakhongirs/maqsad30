@@ -30,12 +30,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_member = await check_channel_membership(update, context)
 
     if not is_member:
-        channel_link = await context.bot.create_chat_invite_link(CHANNEL_ID)
         keyboard = InlineKeyboardMarkup(
             [
                 [
                     InlineKeyboardButton(
-                        text="Kanalga qo'shilish", url=channel_link.invite_link
+                        text="Kanalga qo'shilish", url="https://t.me/+67Qw_YtRsLgxOTMy"
                     )
                 ]
             ]
