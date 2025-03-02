@@ -59,6 +59,18 @@ services:
     command: celery -A core worker --loglevel=INFO
     restart: always
 
+  bot:
+    build: .
+    command: python manage.py bot
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   static_volume:
