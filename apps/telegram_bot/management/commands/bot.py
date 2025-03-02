@@ -11,7 +11,6 @@ CHANNEL_ID = "-1002128930156"
 # Member status constants
 MEMBER_STATUSES = ["member", "administrator", "creator"]
 
-
 async def check_channel_membership(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> bool:
@@ -30,6 +29,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_member = await check_channel_membership(update, context)
 
     if not is_member:
+        # If the user is not a member of the channel, send an invite link
+        invite_link = f"https://t.me/{CHANNEL_ID[1:]}"  # Remove the leading '-' for the channel link
+        await update.message.reply_text(
+            f"*Maqsad Club botiga xush kelibsiz!*\n\n"
+            f"Avvalo, kanalimizga qo'shiling: [Join Channel]({invite_link})",
+            reply_markup=None,
+            parse_mode=ParseMode.MARKDOWN,
+        )
         return
 
     # If user is a member, show welcome message with web app button
