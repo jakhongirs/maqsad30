@@ -37,6 +37,7 @@ CUSTOM_APPS = [
     "apps.users",
     "apps.onboarding",
     "apps.main",
+    "apps.telegram_bot",
 ]
 
 THIRD_PARTY_APPS = [
