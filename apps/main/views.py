@@ -216,7 +216,6 @@ class AllChallengesCalendarAPIView(APIView):
 class ChallengeLeaderboardAPIView(ListAPIView):
     serializer_class = ChallengeLeaderboardSerializer
     permission_classes = [IsTelegramUser]
-    pagination_class = None
 
     def get_queryset(self):
         challenge_id = self.kwargs["id"]
