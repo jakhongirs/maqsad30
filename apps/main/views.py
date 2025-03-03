@@ -180,18 +180,35 @@ class AllChallengesCalendarAPIView(APIView):
     permission_classes = [IsTelegramUser]
 
     def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({"calendar_data": []})
+
         try:
             month = int(request.query_params.get("month", timezone.now().month))
             year = int(request.query_params.get("year", timezone.now().year))
-            # Validate month
             if not 1 <= month <= 12:
                 raise ValidationError("Month must be between 1 and 12")
         except ValueError:
             raise ValidationError("Invalid month or year format")
 
+        # Get all completions for the month in a single query
+        user_challenges = (
+            UserChallenge.objects.filter(user=request.user)
+            .select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserChallengeCompletion.objects.filter(
+                        completed_at__year=year, completed_at__month=month
+                    ).order_by("completed_at"),
+                    to_attr="_prefetched_completions",
+                )
+            )
+        )
+
         context = {"request": request, "month": month, "year": year}
         serializer = AllChallengesCalendarSerializer(
-            Challenge.objects.first(), context=context
+            {"user_challenges": user_challenges}, context=context
         )
         return Response(serializer.data)
 

@@ -161,58 +161,38 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         return [date.isoformat() for date in completion_dates]
 
 
-class AllChallengesCalendarSerializer(serializers.ModelSerializer):
+class AllChallengesCalendarSerializer(serializers.Serializer):
     calendar_data = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Challenge
-        fields = ("calendar_data",)
 
     def get_calendar_data(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return []
 
-        # Get month from query params or use current month
-        month = self.context.get("month", timezone.now().month)
-        year = self.context.get("year", timezone.now().year)
-
-        # Get all user challenges with their completions for the specified month
-        user_challenges = UserChallenge.objects.filter(
-            user=request.user
-        ).select_related("challenge")
-
-        # Dictionary to store challenges by date
+        user_challenges = obj.get("user_challenges", [])
         dates_dict = {}
 
+        # Process all completions from prefetched data
         for user_challenge in user_challenges:
-            # Get completions for this challenge in the specified month
-            completions = UserChallengeCompletion.objects.filter(
-                user_challenge=user_challenge,
-                completed_at__year=year,
-                completed_at__month=month,
-            ).values_list("completed_at", flat=True)
+            challenge = user_challenge.challenge
+            icon_url = None
+            if challenge.calendar_icon:
+                icon_url = request.build_absolute_uri(challenge.calendar_icon.url)
+            elif challenge.icon:
+                icon_url = request.build_absolute_uri(challenge.icon.url)
 
-            # Add challenge to each completion date
-            for completion_date in completions:
-                date_str = completion_date.date().isoformat()
+            challenge_info = {
+                "title": challenge.title,
+                "calendar_icon": icon_url,
+            }
 
-                if date_str not in dates_dict:
-                    dates_dict[date_str] = {"date": date_str, "challenges": []}
-
-                challenge = user_challenge.challenge
-                icon_url = None
-                if challenge.calendar_icon:
-                    icon_url = request.build_absolute_uri(challenge.calendar_icon.url)
-                elif challenge.icon:
-                    icon_url = request.build_absolute_uri(challenge.icon.url)
-
-                dates_dict[date_str]["challenges"].append(
-                    {
-                        "title": challenge.title,
-                        "calendar_icon": icon_url,
-                    }
-                )
+            # Use prefetched completions
+            if hasattr(user_challenge, "_prefetched_completions"):
+                for completion in user_challenge._prefetched_completions:
+                    date_str = completion.completed_at.date().isoformat()
+                    if date_str not in dates_dict:
+                        dates_dict[date_str] = {"date": date_str, "challenges": []}
+                    dates_dict[date_str]["challenges"].append(challenge_info)
 
         # Convert dictionary to sorted list
         result = sorted(dates_dict.values(), key=lambda x: x["date"], reverse=True)
