@@ -24,6 +24,12 @@ class TelegramUserSerializer(serializers.ModelSerializer):
         if telegram_username and telegram_username.startswith("@"):
             validated_data["telegram_username"] = telegram_username[1:]
 
+        # Generate a unique username if telegram_username is not provided
+        username = validated_data.get("telegram_username")
+        if not username:
+            # Use telegram_id as username
+            username = f"user_{validated_data['telegram_id']}"
+
         user, created = User.objects.update_or_create(
             telegram_id=validated_data["telegram_id"],
             defaults={
@@ -31,7 +37,7 @@ class TelegramUserSerializer(serializers.ModelSerializer):
                 "last_name": validated_data.get("last_name", ""),
                 "telegram_username": validated_data.get("telegram_username"),
                 "telegram_photo_url": validated_data.get("telegram_photo_url"),
-                "username": validated_data.get("telegram_username"),
+                "username": username,
             },
         )
         return user
