@@ -215,7 +215,7 @@ class ChallengeAwardListView(ListAPIView):
             ChallengeAward.objects.select_related("challenge")
             .prefetch_related(
                 Prefetch(
-                    "useraward_set",
+                    "user_awards",
                     queryset=UserAward.objects.filter(user=self.request.user),
                     to_attr="user_awards",
                 )
