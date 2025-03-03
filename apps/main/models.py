@@ -45,6 +45,9 @@ class Challenge(BaseModel):
 class Tournament(BaseModel):
     title = models.CharField(_("Title"), max_length=255)
     icon = models.ImageField(_("Icon"), upload_to="tournament_icons/")
+    award_icon = models.ImageField(
+        _("Award Icon"), upload_to="tournament_award_icons/", null=True, blank=True
+    )
     finish_date = models.DateTimeField(_("Finish Date"))
     challenges = models.ManyToManyField(
         Challenge,
@@ -136,16 +139,136 @@ class ChallengeAward(BaseModel):
         return f"Award for {self.challenge.title}"
 
 
+class TournamentAward(BaseModel):
+    tournament = models.OneToOneField(
+        Tournament, on_delete=models.CASCADE, related_name="award"
+    )
+
+    def __str__(self):
+        return f"Award for {self.tournament.title}"
+
+    class Meta:
+        verbose_name = _("Tournament Award")
+        verbose_name_plural = _("Tournament Awards")
+
+
 class UserAward(BaseModel):
     user = models.ForeignKey(
         "users.User", on_delete=models.CASCADE, related_name="awards"
     )
-    award = models.ForeignKey(
-        ChallengeAward, on_delete=models.CASCADE, related_name="user_awards"
+    challenge_award = models.ForeignKey(
+        ChallengeAward,
+        on_delete=models.CASCADE,
+        related_name="user_awards",
+        null=True,
+        blank=True,
+    )
+    tournament_award = models.ForeignKey(
+        TournamentAward,
+        on_delete=models.CASCADE,
+        related_name="user_awards",
+        null=True,
+        blank=True,
     )
 
     class Meta:
-        unique_together = ("user", "award")
+        unique_together = [("user", "challenge_award"), ("user", "tournament_award")]
 
     def __str__(self):
-        return f"{self.user.first_name} - {self.award.challenge.title} Award"
+        if self.challenge_award:
+            return (
+                f"{self.user.first_name} - {self.challenge_award.challenge.title} Award"
+            )
+        return (
+            f"{self.user.first_name} - {self.tournament_award.tournament.title} Award"
+        )
+
+
+class UserTournament(BaseModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="user_tournaments",
+        verbose_name=_("User"),
+    )
+    tournament = models.ForeignKey(
+        Tournament,
+        on_delete=models.CASCADE,
+        related_name="user_tournaments",
+        verbose_name=_("Tournament"),
+    )
+    consecutive_failures = models.PositiveIntegerField(
+        _("Consecutive failures"), default=0
+    )
+    total_failures = models.PositiveIntegerField(_("Total failures"), default=0)
+    is_failed = models.BooleanField(_("Is failed"), default=False)
+    started_at = models.DateTimeField(_("Started at"), auto_now_add=True)
+
+    class Meta:
+        unique_together = ["user", "tournament"]
+        verbose_name = _("User Tournament")
+        verbose_name_plural = _("User Tournaments")
+
+    def check_failure_conditions(self):
+        """Check if tournament should be marked as failed based on failure conditions"""
+        if self.consecutive_failures >= 2 or self.total_failures >= 2:
+            self.is_failed = True
+            self.save()
+        return self.is_failed
+
+
+class UserTournamentDay(BaseModel):
+    user_tournament = models.ForeignKey(
+        UserTournament,
+        on_delete=models.CASCADE,
+        related_name="daily_records",
+        verbose_name=_("User Tournament"),
+    )
+    date = models.DateField(_("Date"))
+    completed_challenges = models.ManyToManyField(
+        Challenge,
+        related_name="tournament_day_completions",
+        verbose_name=_("Completed Challenges"),
+    )
+    is_completed = models.BooleanField(_("Is completed"), default=False)
+
+    class Meta:
+        unique_together = ["user_tournament", "date"]
+        ordering = ["-date"]
+        verbose_name = _("User Tournament Day")
+        verbose_name_plural = _("User Tournament Days")
+
+    def update_completion_status(self):
+        """Update the day's completion status"""
+        tournament_challenges = set(self.user_tournament.tournament.challenges.all())
+        completed_challenges = set(self.completed_challenges.all())
+
+        # Day is completed only if all tournament challenges are completed
+        self.is_completed = completed_challenges == tournament_challenges
+        self.save()
+
+    @classmethod
+    def process_day_end(cls, date):
+        """
+        Process end of day for all tournament days on the given date.
+        Updates tournament failure counts based on complete day results.
+        """
+        # Get all tournament days for the given date
+        day_records = cls.objects.filter(date=date).select_related("user_tournament")
+
+        for day_record in day_records:
+            # Update final completion status
+            day_record.update_completion_status()
+
+            if not day_record.is_completed:
+                # Update tournament failure counts only if the day is actually failed
+                tournament = day_record.user_tournament
+                tournament.consecutive_failures += 1
+                tournament.total_failures += 1
+                tournament.save()
+                tournament.check_failure_conditions()
+            else:
+                # Reset consecutive failures on successful completion
+                tournament = day_record.user_tournament
+                tournament.consecutive_failures = 0
+                tournament.save()

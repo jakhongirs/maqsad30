@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 from core.jazzmin_conf import *  # noqa
 
@@ -46,6 +47,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "modeltranslation",
     "nplusone.ext.django",
+    "django_celery_beat",
 ]
 
 REST_FRAMEWORK = {
@@ -173,7 +175,7 @@ TIME_ZONE = "Asia/Tashkent"
 
 USE_I18N = True
 
-USE_TZ = False
+USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
@@ -205,10 +207,25 @@ REDIS_DB = env.int("REDIS_DB", 0)
 
 
 # CELERY CONFIGURATION
-CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", "redis://localhost:6379")
-CELERY_RESULT_BACKEND = env.str("CELERY_BROKER_URL", "redis://localhost:6379")
+CELERY_BROKER_URL = env.str("CELERY_BROKER", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = env.str("CELERY_BROKER", "redis://localhost:6379/0")
 
+# Celery Settings
 CELERY_TIMEZONE = "Asia/Tashkent"
-
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+
+# Use Django DB scheduler
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    "process-tournament-day-end": {
+        "task": "apps.main.tasks.process_tournament_day_end",
+        "schedule": crontab(minute=47, hour=1),
+    },
+    "process-tournament-awards": {
+        "task": "apps.main.tasks.process_tournament_awards",
+        "schedule": crontab(minute=47, hour=1),  # Run at 1:47 AM like other tasks
+    },
+}

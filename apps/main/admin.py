@@ -7,6 +7,8 @@ from apps.main.models import (
     UserAward,
     UserChallenge,
     UserChallengeCompletion,
+    UserTournament,
+    UserTournamentDay,
 )
 
 
@@ -46,9 +48,15 @@ class ChallengeAwardAdmin(admin.ModelAdmin):
 
 @admin.register(UserAward)
 class UserAwardAdmin(admin.ModelAdmin):
-    list_display = ("user", "award", "created_at")
+    list_display = ("user", "get_award_name", "created_at")
     list_filter = ("created_at",)
-    search_fields = ("user__username", "award__challenge__title")
+    search_fields = ("user__username", "challenge_award__challenge__title", "tournament_award__tournament__title")
+
+    def get_award_name(self, obj):
+        if obj.challenge_award:
+            return f"{obj.challenge_award.challenge.title} Award"
+        return f"{obj.tournament_award.tournament.title} Award"
+    get_award_name.short_description = "Award"
 
 
 @admin.register(Tournament)
@@ -56,3 +64,27 @@ class TournamentAdmin(admin.ModelAdmin):
     list_display = ("title", "finish_date", "is_active")
     list_filter = ("is_active",)
     search_fields = ("title",)
+
+
+@admin.register(UserTournament)
+class UserTournamentAdmin(admin.ModelAdmin):
+    list_display = (
+        "user",
+        "tournament",
+        "consecutive_failures",
+        "total_failures",
+        "is_failed",
+        "started_at",
+    )
+    list_filter = ("is_failed", "started_at")
+    search_fields = ("user__username", "tournament__title")
+
+
+@admin.register(UserTournamentDay)
+class UserTournamentDayAdmin(admin.ModelAdmin):
+    list_display = ("user_tournament", "date", "is_completed")
+    list_filter = ("date", "is_completed")
+    search_fields = (
+        "user_tournament__user__username",
+        "user_tournament__tournament__title",
+    )
