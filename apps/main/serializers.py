@@ -5,7 +5,6 @@ from apps.main.models import (
     Challenge,
     ChallengeAward,
     Tournament,
-    UserAward,
     UserChallenge,
     UserChallengeCompletion,
 )
@@ -276,11 +275,7 @@ class ChallengeAwardSerializer(serializers.ModelSerializer):
         return None
 
     def get_is_user_awarded(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-
-        return UserAward.objects.filter(user=request.user, award=obj).exists()
+        return bool(getattr(obj, "user_awards", []))
 
 
 class TournamentListSerializer(serializers.ModelSerializer):

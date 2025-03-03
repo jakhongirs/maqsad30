@@ -9,6 +9,7 @@ from apps.main.models import (
     Challenge,
     ChallengeAward,
     Tournament,
+    UserAward,
     UserChallenge,
     UserChallengeCompletion,
 )
@@ -208,7 +209,19 @@ class Challenge30DaysPlusStreakDetailView(RetrieveAPIView):
 class ChallengeAwardListView(ListAPIView):
     serializer_class = ChallengeAwardSerializer
     permission_classes = [IsTelegramUser]
-    queryset = ChallengeAward.objects.select_related("challenge").all()
+
+    def get_queryset(self):
+        return (
+            ChallengeAward.objects.select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "useraward_set",
+                    queryset=UserAward.objects.filter(user=self.request.user),
+                    to_attr="user_awards",
+                )
+            )
+            .all()
+        )
 
 
 class TournamentListAPIView(ListAPIView):
