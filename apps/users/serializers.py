@@ -24,11 +24,18 @@ class TelegramUserSerializer(serializers.ModelSerializer):
         if telegram_username and telegram_username.startswith("@"):
             validated_data["telegram_username"] = telegram_username[1:]
 
-        # Generate a unique username if telegram_username is not provided
-        username = validated_data.get("telegram_username")
-        if not username:
-            # Use telegram_id as username
-            username = f"user_{validated_data['telegram_id']}"
+        # Generate a unique username
+        base_username = (
+            validated_data.get("telegram_username")
+            or f"user_{validated_data['telegram_id']}"
+        )
+        username = base_username
+        suffix = 1
+
+        # Keep trying with different suffixes until we find a unique username
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}_{suffix}"
+            suffix += 1
 
         user, created = User.objects.update_or_create(
             telegram_id=validated_data["telegram_id"],
