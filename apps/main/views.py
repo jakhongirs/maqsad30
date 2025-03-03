@@ -1,3 +1,4 @@
+from django.db import models
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -50,10 +51,30 @@ class ChallengeListAPIView(ListAPIView):
 
 
 class ChallengeDetailAPIView(RetrieveAPIView):
-    queryset = Challenge.objects.all()
     serializer_class = ChallengeDetailSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Challenge.objects.all()
+
+        today = timezone.now().date()
+        return Challenge.objects.prefetch_related(
+            Prefetch(
+                "user_challenges",
+                queryset=UserChallenge.objects.filter(user=self.request.user),
+                to_attr="_prefetched_user_challenges",
+            )
+        ).annotate(
+            is_completed_today=models.Exists(
+                UserChallenge.objects.filter(
+                    user=self.request.user,
+                    challenge=models.OuterRef("pk"),
+                    last_completion_date=today,
+                )
+            )
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

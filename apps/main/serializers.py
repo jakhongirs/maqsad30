@@ -54,10 +54,15 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return 0
 
+        # Use prefetched data instead of making a new query
+        if hasattr(obj, "_prefetched_user_challenges"):
+            user_challenges = obj._prefetched_user_challenges
+            return user_challenges[0].total_completions if user_challenges else 0
+
+        # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
             user=request.user, challenge=obj
         ).first()
-
         return user_challenge.total_completions if user_challenge else 0
 
     def get_is_completed_today(self, obj):
@@ -65,12 +70,15 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return False
 
+        # Use annotated field if available
+        if hasattr(obj, "is_completed_today"):
+            return obj.is_completed_today
+
+        # Fallback to database query
         today = timezone.now().date()
-        user_challenge = UserChallenge.objects.filter(
+        return UserChallenge.objects.filter(
             user=request.user, challenge=obj, last_completion_date=today
         ).exists()
-
-        return user_challenge
 
     class Meta:
         model = Challenge
