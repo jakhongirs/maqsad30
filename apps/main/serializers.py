@@ -128,6 +128,20 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return []
 
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_user_challenges"):
+            user_challenges = obj._prefetched_user_challenges
+            if not user_challenges:
+                return []
+
+            user_challenge = user_challenges[0]
+            if hasattr(user_challenge, "_prefetched_completions"):
+                return [
+                    completion.completed_at.date().isoformat()
+                    for completion in user_challenge._prefetched_completions
+                ]
+
+        # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
             user=request.user, challenge=obj
         ).first()
@@ -135,11 +149,9 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         if not user_challenge:
             return []
 
-        # Get month from query params or use current month
         month = self.context.get("month", timezone.now().month)
         year = self.context.get("year", timezone.now().year)
 
-        # Get all completion dates for the challenge filtered by month
         completion_dates = UserChallengeCompletion.objects.filter(
             user_challenge=user_challenge,
             completed_at__year=year,

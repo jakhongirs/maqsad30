@@ -127,17 +127,45 @@ class UserChallengeCompletionAPIView(CreateAPIView):
 
 
 class ChallengeCalendarAPIView(RetrieveAPIView):
-    queryset = Challenge.objects.all()
     serializer_class = ChallengeCalendarSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Challenge.objects.all()
+
+        try:
+            month = int(self.request.query_params.get("month", timezone.now().month))
+            year = int(self.request.query_params.get("year", timezone.now().year))
+            if not 1 <= month <= 12:
+                raise ValidationError("Month must be between 1 and 12")
+        except ValueError:
+            raise ValidationError("Invalid month or year format")
+
+        return Challenge.objects.prefetch_related(
+            Prefetch(
+                "user_challenges",
+                queryset=UserChallenge.objects.filter(
+                    user=self.request.user
+                ).prefetch_related(
+                    Prefetch(
+                        "completions",
+                        queryset=UserChallengeCompletion.objects.filter(
+                            completed_at__year=year, completed_at__month=month
+                        ),
+                        to_attr="_prefetched_completions",
+                    )
+                ),
+                to_attr="_prefetched_user_challenges",
+            )
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         try:
             month = int(self.request.query_params.get("month", timezone.now().month))
             year = int(self.request.query_params.get("year", timezone.now().year))
-            # Validate month
             if not 1 <= month <= 12:
                 raise ValidationError("Month must be between 1 and 12")
         except ValueError:
