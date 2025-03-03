@@ -17,3 +17,4 @@ requests==2.32.3
 python-telegram-bot==21.11.1
 pytz==2025.1
 tzlocal==2.1
+sentry-sdk==2.22.0

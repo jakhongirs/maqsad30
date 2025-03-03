@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import environ
+import sentry_sdk
 
 from core.jazzmin_conf import *  # noqa
 
@@ -212,3 +213,13 @@ CELERY_TIMEZONE = "Asia/Tashkent"
 
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+
+
+sentry_sdk.init(
+    dsn="https://e261deeaf0d829693b6f2be7d3517906@o4508913256890368.ingest.us.sentry.io/4508913259642880",
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+    _experiments={
+        "continuous_profiling_auto_start": True,
+    },
+)
