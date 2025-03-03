@@ -217,7 +217,7 @@ class ChallengeAwardListView(ListAPIView):
                 Prefetch(
                     "user_awards",
                     queryset=UserAward.objects.filter(user=self.request.user),
-                    to_attr="user_awards",
+                    to_attr="_prefetched_user_awards",
                 )
             )
             .all()

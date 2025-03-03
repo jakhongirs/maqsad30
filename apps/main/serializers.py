@@ -275,7 +275,7 @@ class ChallengeAwardSerializer(serializers.ModelSerializer):
         return None
 
     def get_is_user_awarded(self, obj):
-        return bool(getattr(obj, "user_awards", []))
+        return bool(getattr(obj, "_prefetched_user_awards", []))
 
 
 class TournamentListSerializer(serializers.ModelSerializer):
