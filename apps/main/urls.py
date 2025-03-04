@@ -11,6 +11,7 @@ from apps.main.views import (
     ChallengeListAPIView,
     TournamentDetailAPIView,
     TournamentListAPIView,
+    UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
 )
 
@@ -65,5 +66,10 @@ urlpatterns = [
         "challenges/awards/",
         ChallengeAwardListView.as_view(),
         name="challenge-awards",
+    ),
+    path(
+        "admin/update-streaks/",
+        UpdateUserChallengeStreaksAPIView.as_view(),
+        name="update-user-challenge-streaks",
     ),
 ]

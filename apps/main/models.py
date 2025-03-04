@@ -90,25 +90,75 @@ class UserChallenge(BaseModel):
         verbose_name_plural = _("User Challenges")
 
     def update_streak(self, completion_date):
-        if self.last_completion_date:
-            # Check if the completion is on the next day
-            if completion_date == self.last_completion_date + timezone.timedelta(
-                days=1
-            ):
-                self.current_streak += 1
-            elif completion_date > self.last_completion_date:
-                # Reset streak if there's a gap
-                self.current_streak = 1
+        # Get all completions for this user challenge
+        completions = self.completions.all()
+
+        # Extract unique dates from completions and add the current completion date
+        completion_dates = {
+            completion.completed_at.date() for completion in completions
+        }
+        completion_dates.add(completion_date)
+
+        # Filter out any future dates (should not happen, but just in case)
+        today = timezone.now().date()
+        completion_dates = {date for date in completion_dates if date <= today}
+
+        # Convert to list and sort
+        completion_dates = sorted(list(completion_dates))
+
+        # If no completions, set streak to 0 and return
+        if not completion_dates:
+            self.current_streak = 0
+            self.highest_streak = 0
+            self.total_completions = 0
+            self.save()
+            return
+
+        # Calculate streaks by identifying consecutive date groups
+        streaks = []
+        current_group = [completion_dates[0]]
+
+        # Group consecutive dates
+        for i in range(1, len(completion_dates)):
+            current_date = completion_dates[i]
+            previous_date = completion_dates[i - 1]
+
+            # If dates are consecutive
+            if current_date == previous_date + timezone.timedelta(days=1):
+                current_group.append(current_date)
+            else:
+                # End of a streak, start a new group
+                streaks.append(current_group)
+                current_group = [current_date]
+
+        # Add the last group
+        if current_group:
+            streaks.append(current_group)
+
+        # Calculate streak lengths
+        streak_lengths = [len(group) for group in streaks]
+
+        # The highest streak is the length of the longest consecutive group
+        self.highest_streak = max(streak_lengths) if streak_lengths else 0
+
+        # The current streak is the length of the most recent group (if it includes today or yesterday)
+        latest_group = streaks[-1] if streaks else []
+        latest_date = latest_group[-1] if latest_group else None
+
+        if latest_date and (
+            latest_date == today or latest_date == today - timezone.timedelta(days=1)
+        ):
+            self.current_streak = len(latest_group)
         else:
-            # First completion
-            self.current_streak = 1
+            # If the latest group doesn't include today or yesterday, current streak is 0
+            self.current_streak = 0
 
-        # Update highest streak if current streak is higher
-        if self.current_streak > self.highest_streak:
-            self.highest_streak = self.current_streak
+        # Update last completion date
+        self.last_completion_date = completion_dates[-1]
 
-        self.last_completion_date = completion_date
-        self.total_completions += 1
+        # Update total completions based on the number of unique completion dates
+        self.total_completions = len(completion_dates)
+
         self.save()
 
 

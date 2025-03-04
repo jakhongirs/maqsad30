@@ -1,8 +1,10 @@
 from django.db import models
 from django.db.models import Prefetch
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -26,6 +28,7 @@ from apps.main.serializers import (
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
 )
+from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
 
 
@@ -316,3 +319,24 @@ class TournamentDetailAPIView(RetrieveAPIView):
     serializer_class = TournamentDetailSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
+
+
+class UpdateUserChallengeStreaksAPIView(APIView):
+    """
+    API view to manually trigger the update_all_user_challenge_streaks task.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Trigger the Celery task
+        task = update_all_user_challenge_streaks.delay()
+
+        return Response(
+            {
+                "status": "success",
+                "message": "User challenge streaks update task has been triggered",
+                "task_id": task.id,
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
