@@ -335,32 +335,3 @@ class UpdateUserChallengeStreaksAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
-
-class DeleteMarchFourthCompletionsAPIView(APIView):
-    """
-    API view to delete UserChallengeCompletions for March 4th except for Challenge ID 1.
-    """
-
-    permission_classes = [IsTelegramUser]
-
-    def delete(self, request):
-        # Get March 4th completions excluding those for Challenge ID 1
-        march_fourth_completions = UserChallengeCompletion.objects.exclude(
-            user_challenge__challenge_id=1
-        ).filter(completed_at__date="2025-03-04")
-
-        # Count completions before deletion
-        count = march_fourth_completions.count()
-
-        # Delete the completions
-        march_fourth_completions.delete()
-
-        # Return success response
-        return Response(
-            {
-                "status": "success",
-                "message": f"Deleted {count} completions from March 4th (excluding Challenge ID 1)",
-            },
-            status=status.HTTP_200_OK,
-        )
