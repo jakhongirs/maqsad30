@@ -5,6 +5,8 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+from apps.users.models import Timezone, User
+
 TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
 WEB_APP_URL = settings.WEB_APP_URL
 CHANNEL_ID = "-1002128930156"
@@ -24,6 +26,45 @@ async def check_channel_membership(
         return chat_member.status in MEMBER_STATUSES
     except TelegramError:
         return False
+
+
+async def create_or_update_user(user) -> User:
+    """Create or update user from Telegram data."""
+    # Generate a unique username if needed
+    base_username = user.username or f"user_{user.id}"
+    username = base_username
+    suffix = 1
+
+    # Keep trying with different suffixes until we find a unique username
+    while User.objects.filter(username=username).exists():
+        username = f"{base_username}_{suffix}"
+        suffix += 1
+
+    # Create or update user
+    user_obj, created = User.objects.update_or_create(
+        telegram_id=str(user.id),
+        defaults={
+            "username": username,
+            "first_name": user.first_name or "",
+            "last_name": user.last_name or "",
+            "telegram_username": user.username,
+            "telegram_photo_url": (
+                user.get_profile_photos().photos[0][-1].file_url
+                if user.get_profile_photos().total_count > 0
+                else None
+            ),
+        },
+    )
+
+    # Set default timezone if not set
+    if not user_obj.timezone:
+        timezone, _ = Timezone.objects.get_or_create(
+            name="Asia/Tashkent", defaults={"offset": "+05:00"}
+        )
+        user_obj.timezone = timezone
+        user_obj.save(update_fields=["timezone"])
+
+    return user_obj
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -48,6 +89,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN,
         )
         return
+
+    # Only create user if they don't exist
+    if not User.objects.filter(telegram_id=str(update.effective_user.id)).exists():
+        await create_or_update_user(update.effective_user)
 
     # If user is a member, show welcome message with web app button
     keyboard = InlineKeyboardMarkup(
