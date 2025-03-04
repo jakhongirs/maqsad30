@@ -28,7 +28,6 @@ from apps.main.serializers import (
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
 )
-from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
 
 
@@ -323,20 +322,24 @@ class TournamentDetailAPIView(RetrieveAPIView):
 
 class UpdateUserChallengeStreaksAPIView(APIView):
     """
-    API view to manually trigger the update_all_user_challenge_streaks task.
+    API view to directly update all user challenge streaks.
     """
 
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Trigger the Celery task
-        task = update_all_user_challenge_streaks.delay()
+        today = timezone.now().date()
+        user_challenges = UserChallenge.objects.all()
+
+        updated_count = 0
+        for user_challenge in user_challenges:
+            user_challenge.update_streak(today)
+            updated_count += 1
 
         return Response(
             {
                 "status": "success",
-                "message": "User challenge streaks update task has been triggered",
-                "task_id": task.id,
+                "message": f"Updated {updated_count} user challenge streaks",
             },
-            status=status.HTTP_202_ACCEPTED,
+            status=status.HTTP_200_OK,
         )
