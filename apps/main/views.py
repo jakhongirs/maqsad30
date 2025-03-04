@@ -354,40 +354,80 @@ class BackfillUserChallengeCompletionsView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        import random
         from datetime import datetime, timedelta
 
         import pytz
 
-        # Set start date to March 1st, 2024 at 00:00
-        start_date = datetime(2025, 3, 1, 0, 0, tzinfo=pytz.UTC)
-        end_date = timezone.now().date()
+        # Temporarily modify the auto_now_add field
+        original_auto_now_add = UserChallengeCompletion._meta.get_field(
+            "completed_at"
+        ).auto_now_add
+        UserChallengeCompletion._meta.get_field("completed_at").auto_now_add = False
 
-        # Get all UserChallenges
-        user_challenges = UserChallenge.objects.all()
+        try:
+            # Delete all existing completion records
+            deleted_count = UserChallengeCompletion.objects.all().delete()[0]
 
-        created_count = 0
-        current_date = start_date
+            # Set start date to March 1st, 2024 at 00:00
+            start_date = datetime(2025, 3, 1, 0, 0, tzinfo=pytz.UTC)
+            end_date = timezone.now().date()
 
-        # Iterate through each day from start_date to today
-        while current_date.date() <= end_date:
-            for user_challenge in user_challenges:
-                # Create completion record if it doesn't exist for this date
-                completion, created = UserChallengeCompletion.objects.get_or_create(
-                    user_challenge=user_challenge, completed_at=current_date
-                )
+            # Get all UserChallenges with their related challenges
+            user_challenges = UserChallenge.objects.select_related("challenge").all()
 
-                if created:
+            # Reset all UserChallenge stats
+            UserChallenge.objects.all().update(
+                current_streak=0,
+                highest_streak=0,
+                total_completions=0,
+                last_completion_date=None,
+            )
+
+            created_count = 0
+            current_date = start_date
+
+            # Iterate through each day from start_date to today
+            while current_date.date() <= end_date:
+                for user_challenge in user_challenges:
+                    challenge = user_challenge.challenge
+
+                    # Create a datetime combining current date with a random time between start_time and end_time
+                    start_datetime = timezone.make_aware(
+                        datetime.combine(current_date.date(), challenge.start_time)
+                    )
+                    end_datetime = timezone.make_aware(
+                        datetime.combine(current_date.date(), challenge.end_time)
+                    )
+
+                    # Calculate random completion time between start and end time
+                    time_diff = (end_datetime - start_datetime).total_seconds()
+                    random_seconds = random.randint(0, int(time_diff))
+                    completion_datetime = start_datetime + timedelta(
+                        seconds=random_seconds
+                    )
+
+                    # Create completion record
+                    completion = UserChallengeCompletion.objects.create(
+                        user_challenge=user_challenge, completed_at=completion_datetime
+                    )
+
                     created_count += 1
                     # Update the streak for this user challenge
                     user_challenge.update_streak(current_date.date())
 
-            # Move to next day
-            current_date += timedelta(days=1)
+                # Move to next day
+                current_date += timedelta(days=1)
 
-        return Response(
-            {
-                "status": "success",
-                "message": f"Created {created_count} completion records",
-            },
-            status=status.HTTP_200_OK,
-        )
+            return Response(
+                {
+                    "status": "success",
+                    "message": f"Deleted {deleted_count} old records and created {created_count} new completion records",
+                },
+                status=status.HTTP_200_OK,
+            )
+        finally:
+            # Restore the auto_now_add field
+            UserChallengeCompletion._meta.get_field(
+                "completed_at"
+            ).auto_now_add = original_auto_now_add
