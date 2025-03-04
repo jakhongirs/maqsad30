@@ -15,6 +15,18 @@ class ChallengeAdmin(admin.ModelAdmin):
     list_display = ("title", "start_time", "end_time", "created_at")
     list_filter = ("start_time", "end_time")
     search_fields = ("title",)
+    readonly_fields = ()
+    fields = (
+        "title",
+        "icon",
+        "calendar_icon",
+        "award_icon",
+        "video_instruction_url",
+        "video_instruction_title",
+        "start_time",
+        "end_time",
+        "created_at",
+    )
 
 
 @admin.register(UserChallenge)
