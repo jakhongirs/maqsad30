@@ -59,6 +59,14 @@ services:
     command: celery -A core worker --loglevel=INFO
     restart: always
 
+
+  celery-beat:
+    container_name: ${PROJECT_NAME}_celery_beat
+    <<: *web
+    ports: [ ]
+    command: celery -A core beat --loglevel=INFO
+    restart: always
+
   bot:
     build: .
     command: python manage.py bot
