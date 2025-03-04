@@ -343,3 +343,51 @@ class UpdateUserChallengeStreaksAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class BackfillUserChallengeCompletionsView(APIView):
+    """
+    API view to backfill UserChallengeCompletion records for existing UserChallenges
+    starting from March 1st until today.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from datetime import datetime, timedelta
+
+        import pytz
+
+        # Set start date to March 1st, 2024 at 00:00
+        start_date = datetime(2025, 3, 1, 0, 0, tzinfo=pytz.UTC)
+        end_date = timezone.now().date()
+
+        # Get all UserChallenges
+        user_challenges = UserChallenge.objects.all()
+
+        created_count = 0
+        current_date = start_date
+
+        # Iterate through each day from start_date to today
+        while current_date.date() <= end_date:
+            for user_challenge in user_challenges:
+                # Create completion record if it doesn't exist for this date
+                completion, created = UserChallengeCompletion.objects.get_or_create(
+                    user_challenge=user_challenge, completed_at=current_date
+                )
+
+                if created:
+                    created_count += 1
+                    # Update the streak for this user challenge
+                    user_challenge.update_streak(current_date.date())
+
+            # Move to next day
+            current_date += timedelta(days=1)
+
+        return Response(
+            {
+                "status": "success",
+                "message": f"Created {created_count} completion records",
+            },
+            status=status.HTTP_200_OK,
+        )
