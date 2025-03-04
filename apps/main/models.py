@@ -93,11 +93,10 @@ class UserChallenge(BaseModel):
         # Get all completions for this user challenge
         completions = self.completions.all()
 
-        # Extract unique dates from completions and add the current completion date
+        # Extract unique dates from completions
         completion_dates = {
             completion.completed_at.date() for completion in completions
         }
-        completion_dates.add(completion_date)
 
         # Filter out any future dates (should not happen, but just in case)
         today = timezone.now().date()
