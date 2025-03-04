@@ -33,7 +33,11 @@ class UserChallengeAdmin(admin.ModelAdmin):
 
 @admin.register(UserChallengeCompletion)
 class UserChallengeCompletionAdmin(admin.ModelAdmin):
-    list_display = ("user_challenge", "completed_at")
+    list_display = (
+        "user_challenge",
+        "user_challenge__challenge__title",
+        "completed_at",
+    )
     list_filter = ("completed_at",)
     search_fields = (
         "user_challenge__user__first_name",
