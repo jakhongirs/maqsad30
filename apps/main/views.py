@@ -94,17 +94,9 @@ class UserChallengeCompletionAPIView(CreateAPIView):
         except Challenge.DoesNotExist:
             raise ValidationError("Challenge not found")
 
-        # Get current time and date in UTC
+        # Get current date in UTC
         now = timezone.now()
-        current_time = now.time()
         current_date = now.date()
-
-        # Check if current time is within the challenge time window
-        if current_time < challenge.start_time or current_time > challenge.end_time:
-            raise ValidationError(
-                f"Challenge can only be completed between {challenge.start_time.strftime('%H:%M')} "
-                f"and {challenge.end_time.strftime('%H:%M')}"
-            )
 
         # Get or create UserChallenge
         user_challenge, _ = UserChallenge.objects.get_or_create(
