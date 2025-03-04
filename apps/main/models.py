@@ -98,6 +98,10 @@ class UserChallenge(BaseModel):
             completion.completed_at.date() for completion in completions
         }
 
+        # Only add completion_date if it's not None and not already in completion_dates
+        if completion_date and completion_date not in completion_dates:
+            completion_dates.add(completion_date)
+
         # Filter out any future dates (should not happen, but just in case)
         today = timezone.now().date()
         completion_dates = {date for date in completion_dates if date <= today}
