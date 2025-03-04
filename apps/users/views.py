@@ -5,7 +5,7 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.users.models import Timezone
+from apps.users.models import Timezone, User
 from apps.users.permissions import IsTelegramUser
 
 from .serializers import (
@@ -27,7 +27,11 @@ class TelegramUserRegistrationView(generics.CreateAPIView):
     authentication_classes: list = []
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        # Check if user already exists
+        telegram_id = request.data.get("telegram_id")
+        existing_user = User.objects.filter(telegram_id=telegram_id).first()
+
+        serializer = self.get_serializer(instance=existing_user, data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
@@ -38,13 +42,16 @@ class TelegramUserRegistrationView(generics.CreateAPIView):
         user.timezone = timezone
         user.save(update_fields=["timezone"])
 
+        status_code = status.HTTP_200_OK if existing_user else status.HTTP_201_CREATED
         return Response(
             {
                 "status": "success",
-                "message": "User registered successfully",
+                "message": "User updated successfully"
+                if existing_user
+                else "User registered successfully",
                 "data": serializer.data,
             },
-            status=status.HTTP_201_CREATED,
+            status=status_code,
         )
 
 
