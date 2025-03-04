@@ -1,3 +1,4 @@
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
@@ -28,7 +29,14 @@ async def check_channel_membership(
         return False
 
 
-async def create_or_update_user(user) -> User:
+@sync_to_async
+def check_user_exists(telegram_id: str) -> bool:
+    """Check if user exists in database."""
+    return User.objects.filter(telegram_id=telegram_id).exists()
+
+
+@sync_to_async
+def create_user(user) -> User:
     """Create or update user from Telegram data."""
     # Generate a unique username if needed
     base_username = user.username or f"user_{user.id}"
@@ -40,29 +48,26 @@ async def create_or_update_user(user) -> User:
         username = f"{base_username}_{suffix}"
         suffix += 1
 
-    # Create or update user
-    user_obj, created = User.objects.update_or_create(
+    # Create user
+    user_obj = User.objects.create(
         telegram_id=str(user.id),
-        defaults={
-            "username": username,
-            "first_name": user.first_name or "",
-            "last_name": user.last_name or "",
-            "telegram_username": user.username,
-            "telegram_photo_url": (
-                user.get_profile_photos().photos[0][-1].file_url
-                if user.get_profile_photos().total_count > 0
-                else None
-            ),
-        },
+        username=username,
+        first_name=user.first_name or "",
+        last_name=user.last_name or "",
+        telegram_username=user.username,
+        telegram_photo_url=(
+            user.get_profile_photos().photos[0][-1].file_url
+            if user.get_profile_photos().total_count > 0
+            else None
+        ),
     )
 
-    # Set default timezone if not set
-    if not user_obj.timezone:
-        timezone, _ = Timezone.objects.get_or_create(
-            name="Asia/Tashkent", defaults={"offset": "+05:00"}
-        )
-        user_obj.timezone = timezone
-        user_obj.save(update_fields=["timezone"])
+    # Set default timezone
+    timezone, _ = Timezone.objects.get_or_create(
+        name="Asia/Tashkent", defaults={"offset": "+05:00"}
+    )
+    user_obj.timezone = timezone
+    user_obj.save(update_fields=["timezone"])
 
     return user_obj
 
@@ -91,8 +96,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Only create user if they don't exist
-    if not User.objects.filter(telegram_id=str(update.effective_user.id)).exists():
-        await create_or_update_user(update.effective_user)
+    user_exists = await check_user_exists(str(update.effective_user.id))
+    if not user_exists:
+        await create_user(update.effective_user)
 
     # If user is a member, show welcome message with web app button
     keyboard = InlineKeyboardMarkup(
