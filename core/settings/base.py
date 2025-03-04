@@ -234,3 +234,7 @@ sentry_sdk.init(
         "continuous_profiling_auto_start": True,
     },
 )
+
+# Telegram Bot Settings
+TELEGRAM_BOT_TOKEN = "7765591046:AAHLUJjZFNIegHv3e9bdOUHYpXWguJix8DY"
+WEB_APP_URL = "https://maqsad30.icc-kimyo.uz/"

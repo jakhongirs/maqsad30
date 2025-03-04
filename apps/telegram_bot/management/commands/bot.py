@@ -1,11 +1,12 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
 from telegram.constants import ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TELEGRAM_BOT_TOKEN = "7217412861:AAEq1F5tHwiSLqtDMqccFTNarlFYl4xdzX0"
-WEB_APP_URL = "https://maqsad30.icc-kimyo.uz/"
+TELEGRAM_BOT_TOKEN = settings.TELEGRAM_BOT_TOKEN
+WEB_APP_URL = settings.WEB_APP_URL
 CHANNEL_ID = "-1002128930156"
 
 # Member status constants
@@ -34,7 +35,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [
                 [
                     InlineKeyboardButton(
-                        text="📢 Kanaga a'zo bo'lish", url="https://t.me/+67Qw_YtRsLgxOTMy"
+                        text="📢 Kanaga a'zo bo'lish",
+                        url="https://t.me/+67Qw_YtRsLgxOTMy",
                     )
                 ]
             ]
@@ -72,6 +74,3 @@ class Command(BaseCommand):
         # Start the bot
         self.stdout.write(self.style.SUCCESS("Bot started"))
         application.run_polling()
-
-
-
