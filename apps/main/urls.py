@@ -9,6 +9,7 @@ from apps.main.views import (
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
+    DeleteMarchFourthCompletionsAPIView,
     TournamentDetailAPIView,
     TournamentListAPIView,
     UpdateUserChallengeStreaksAPIView,
@@ -71,5 +72,10 @@ urlpatterns = [
         "admin/update-streaks/",
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
+    ),
+    path(
+        "admin/delete-march-fourth-completions/",
+        DeleteMarchFourthCompletionsAPIView.as_view(),
+        name="delete-march-fourth-completions",
     ),
 ]
