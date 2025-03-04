@@ -237,4 +237,5 @@ sentry_sdk.init(
 
 # Telegram Bot Settings
 TELEGRAM_BOT_TOKEN = "7217412861:AAEq1F5tHwiSLqtDMqccFTNarlFYl4xdzX0"
+TELEGRAM_CHANNEL_ID = "-1002128930156"
 WEB_APP_URL = "https://maqsad30.icc-kimyo.uz/"

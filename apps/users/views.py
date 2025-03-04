@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Case, IntegerField, Value, When
 from rest_framework import generics, permissions, status
 from rest_framework.filters import SearchFilter
@@ -113,8 +114,6 @@ class LoadTimezoneDataAPIView(APIView):
         try:
             import json
 
-            from django.conf import settings
-
             # Read the JSON file
             with open("apps/users/fixtures/timezone.json", encoding="utf-8") as file:
                 timezones = json.load(file)
@@ -144,3 +143,32 @@ class LoadTimezoneDataAPIView(APIView):
                 {"status": "error", "message": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class CheckChannelMembershipAPIView(APIView):
+    """
+    API endpoint to check if the authenticated user is a member of a specified Telegram channel.
+    Requires X-Telegram-ID header for authentication.
+    """
+
+    permission_classes = [IsTelegramUser]
+
+    def post(self, request):
+        bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
+        channel_id = getattr(settings, "TELEGRAM_CHANNEL_ID", None)
+
+        if not bot_token:
+            return Response(
+                {"error": "TELEGRAM_BOT_TOKEN is not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        if not channel_id:
+            return Response(
+                {"error": "TELEGRAM_CHANNEL_ID is not configured"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        is_member = request.user.check_channel_membership(bot_token, channel_id)
+
+        return Response({"is_member": is_member})

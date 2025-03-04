@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    CheckChannelMembershipAPIView,
     LoadTimezoneDataAPIView,
     TelegramUserRegistrationView,
     TimezoneListAPIView,
@@ -24,4 +25,9 @@ urlpatterns = [
     ),
     path("timezones/", TimezoneListAPIView.as_view(), name="timezone-list"),
     path("timezones/load/", LoadTimezoneDataAPIView.as_view(), name="timezone-load"),
+    path(
+        "telegram/check-channel-membership/",
+        CheckChannelMembershipAPIView.as_view(),
+        name="check-channel-membership",
+    ),
 ]
