@@ -34,9 +34,13 @@ async def get_user_photo_url(user) -> str | None:
     try:
         photos = await user.get_profile_photos()
         if photos.total_count > 0:
-            return photos.photos[0][-1].file_url
-    except Exception:
-        pass
+            # Get the first photo (most recent) and its largest size
+            photo = photos.photos[0][-1]
+            # Get the direct file URL through the bot API
+            file = await photo.get_file()
+            return file.file_path
+    except Exception as e:
+        print(f"Error getting photo URL: {e}")
     return None
 
 
