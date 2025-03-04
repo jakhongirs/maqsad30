@@ -11,11 +11,7 @@ from apps.users.models import User
 @shared_task
 def async_send_message_to_users(message_id):
     message = CustomMessage.objects.get(id=message_id)
-    users = (
-        User.objects.filter(id__in=[3017, 2988, 2770, 883])
-        .exclude(telegram_id__isnull=True)
-        .exclude(telegram_id="")
-    )
+    users = User.objects.exclude(telegram_id__isnull=True).exclude(telegram_id="")
 
     print(len(users))
 
