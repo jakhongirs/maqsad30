@@ -117,35 +117,6 @@ class User(AbstractUser, BaseModel):
                 setattr(self, x, f"DELETED_{self.id}_{getattr(self, x)}")
         self.save()
 
-    def check_channel_membership(self, bot_token, channel_id):
-        """
-        Check if the user is a member of a specified Telegram channel.
-
-        Args:
-            bot_token (str): Telegram bot token
-            channel_id (str): Channel username or ID (e.g. "@channel_name")
-
-        Returns:
-            bool: True if user is a member, False otherwise
-        """
-        if not self.telegram_id:
-            return False
-
-        url = f"https://api.telegram.org/bot{bot_token}/getChatMember"
-        params = {"chat_id": channel_id, "user_id": self.telegram_id}
-
-        try:
-            response = requests.get(url, params=params)
-            data = response.json()
-
-            if "result" in data:
-                status = data["result"]["status"]
-                return status in ["member", "administrator", "creator"]
-            return False
-        except Exception as e:
-            print(f"Error checking channel membership: {e}")
-            return False
-
     class Meta:
         verbose_name = _("User")
         verbose_name_plural = _("Users")

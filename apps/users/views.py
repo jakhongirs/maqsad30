@@ -1,3 +1,4 @@
+import requests
 from django.conf import settings
 from django.db.models import Case, IntegerField, Value, When
 from rest_framework import generics, permissions, status
@@ -147,15 +148,22 @@ class LoadTimezoneDataAPIView(APIView):
 
 class CheckChannelMembershipAPIView(APIView):
     """
-    API endpoint to check if the authenticated user is a member of a specified Telegram channel.
-    Requires X-Telegram-ID header for authentication.
+    API endpoint to check if a user is a member of a specified Telegram channel.
+    This endpoint is public and accepts telegram_id in the request body.
     """
 
-    permission_classes = [IsTelegramUser]
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     def post(self, request):
+        telegram_id = request.data.get("telegram_id") if request.data else None
         bot_token = getattr(settings, "TELEGRAM_BOT_TOKEN", None)
         channel_id = getattr(settings, "TELEGRAM_CHANNEL_ID", None)
+
+        if not telegram_id:
+            return Response(
+                {"error": "telegram_id is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not bot_token:
             return Response(
@@ -169,6 +177,21 @@ class CheckChannelMembershipAPIView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-        is_member = request.user.check_channel_membership(bot_token, channel_id)
+        url = f"https://api.telegram.org/bot{bot_token}/getChatMember"
+        params = {"chat_id": channel_id, "user_id": telegram_id}
+
+        try:
+            response = requests.get(url, params=params)
+            data = response.json()
+
+            if "result" in data and "status" in data["result"]:
+                member_status = data["result"]["status"]
+                is_member = member_status in ["member", "administrator", "creator"]
+            else:
+                is_member = False
+
+        except Exception as e:
+            print(f"Error checking channel membership: {e}")
+            is_member = False
 
         return Response({"is_member": is_member})
