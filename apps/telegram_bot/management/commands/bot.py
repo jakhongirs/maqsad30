@@ -29,6 +29,17 @@ async def check_channel_membership(
         return False
 
 
+async def get_user_photo_url(user) -> str | None:
+    """Get user's profile photo URL."""
+    try:
+        photos = await user.get_profile_photos()
+        if photos.total_count > 0:
+            return photos.photos[0][-1].file_url
+    except Exception:
+        pass
+    return None
+
+
 @sync_to_async
 def check_user_exists(telegram_id: str) -> bool:
     """Check if user exists in database."""
@@ -36,10 +47,10 @@ def check_user_exists(telegram_id: str) -> bool:
 
 
 @sync_to_async
-def create_user(user) -> User:
-    """Create or update user from Telegram data."""
+def create_user_sync(user_data: dict) -> User:
+    """Create user from data dictionary."""
     # Generate a unique username if needed
-    base_username = user.username or f"user_{user.id}"
+    base_username = user_data["username"] or f"user_{user_data['telegram_id']}"
     username = base_username
     suffix = 1
 
@@ -50,16 +61,12 @@ def create_user(user) -> User:
 
     # Create user
     user_obj = User.objects.create(
-        telegram_id=str(user.id),
+        telegram_id=user_data["telegram_id"],
         username=username,
-        first_name=user.first_name or "",
-        last_name=user.last_name or "",
-        telegram_username=user.username,
-        telegram_photo_url=(
-            user.get_profile_photos().photos[0][-1].file_url
-            if user.get_profile_photos().total_count > 0
-            else None
-        ),
+        first_name=user_data["first_name"] or "",
+        last_name=user_data["last_name"] or "",
+        telegram_username=user_data["username"],
+        telegram_photo_url=user_data["photo_url"],
     )
 
     # Set default timezone
@@ -70,6 +77,24 @@ def create_user(user) -> User:
     user_obj.save(update_fields=["timezone"])
 
     return user_obj
+
+
+async def create_user(user) -> User:
+    """Create user with async photo fetching."""
+    # Get photo URL asynchronously
+    photo_url = await get_user_photo_url(user)
+
+    # Prepare user data
+    user_data = {
+        "telegram_id": str(user.id),
+        "username": user.username,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "photo_url": photo_url,
+    }
+
+    # Create user in database
+    return await create_user_sync(user_data)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
