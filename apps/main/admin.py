@@ -35,6 +35,8 @@ class UserChallengeAdmin(admin.ModelAdmin):
 class UserChallengeCompletionAdmin(admin.ModelAdmin):
     list_display = (
         "user_challenge",
+        "user_challenge__user__first_name",
+        "user_challenge__user__telegram_id",
         "user_challenge__challenge__title",
         "completed_at",
     )
