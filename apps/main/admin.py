@@ -12,7 +12,7 @@ from apps.main.models import (
 
 @admin.register(Challenge)
 class ChallengeAdmin(admin.ModelAdmin):
-    list_display = ("title", "start_time", "end_time")
+    list_display = ("title", "start_time", "end_time", "created_at")
     list_filter = ("start_time", "end_time")
     search_fields = ("title",)
 
