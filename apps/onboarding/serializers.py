@@ -37,16 +37,25 @@ class UserAnswerCreateSerializer(serializers.Serializer):
     def validate(self, data):
         answers = data.get("answers", [])
 
-        for answer in answers:
-            question_id = answer["question_id"]
-            answer_id = answer["answer_id"]
+        # Get all question IDs and answer IDs
+        question_ids = {answer["question_id"] for answer in answers}
+        answer_ids = {answer["answer_id"] for answer in answers}
 
-            # Validate that answer belongs to the question
-            if not Answer.objects.filter(
-                question_id=question_id, id=answer_id
-            ).exists():
+        # Fetch all valid answers in a single query with their questions
+        valid_answers = (
+            Answer.objects.filter(id__in=answer_ids, question_id__in=question_ids)
+            .select_related("question")
+            .values_list("id", "question_id")
+        )
+
+        # Create a set of valid (question_id, answer_id) pairs
+        valid_pairs = {(q_id, a_id) for a_id, q_id in valid_answers}
+
+        # Validate all answers
+        for answer in answers:
+            if (answer["question_id"], answer["answer_id"]) not in valid_pairs:
                 raise serializers.ValidationError(
-                    f"Invalid answer selection for question {question_id}"
+                    f"Invalid answer selection for question {answer['question_id']}"
                 )
 
         return data
@@ -54,16 +63,25 @@ class UserAnswerCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         user = self.context["request"].user
         answers = validated_data.get("answers")
-        user_answers = []
 
+        # Prepare bulk upsert data
+        user_answers_to_create = []
         for answer_data in answers:
-            question_id = answer_data["question_id"]
-            answer_id = answer_data["answer_id"]
-
-            user_answer, _ = UserAnswer.objects.update_or_create(
-                user=user, question_id=question_id, defaults={"answer_id": answer_id}
+            user_answers_to_create.append(
+                UserAnswer(
+                    user=user,
+                    question_id=answer_data["question_id"],
+                    answer_id=answer_data["answer_id"],
+                )
             )
-            user_answers.append(user_answer)
+
+        # Bulk create/update using a single query
+        user_answers = UserAnswer.objects.bulk_create(
+            user_answers_to_create,
+            update_conflicts=True,
+            unique_fields=["user", "question"],
+            update_fields=["answer"],
+        )
 
         return user_answers
 
