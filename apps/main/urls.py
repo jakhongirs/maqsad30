@@ -57,9 +57,9 @@ urlpatterns = [
         name="challenge-complete",
     ),
     path(
-        "challenges/<int:id>/calendar/",
+        "user-challenges/<int:id>/calendar/",
         ChallengeCalendarAPIView.as_view(),
-        name="challenge-calendar",
+        name="user-challenge-calendar",
     ),
     path(
         "challenges/calendar/",

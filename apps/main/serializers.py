@@ -37,9 +37,10 @@ class UserChallengeCompletionSerializer(serializers.ModelSerializer):
 class ChallengeCalendarSerializer(serializers.ModelSerializer):
     completion_dates = serializers.SerializerMethodField()
     calendar_icon = serializers.SerializerMethodField()
+    title = serializers.CharField(source="challenge.title")
 
     class Meta:
-        model = Challenge
+        model = UserChallenge
         fields = (
             "id",
             "title",
@@ -49,41 +50,32 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
 
     def get_calendar_icon(self, obj):
         request = self.context.get("request")
-        if obj.calendar_icon:
-            return request.build_absolute_uri(obj.calendar_icon.url)
-        return request.build_absolute_uri(obj.icon.url) if obj.icon else None
+        if obj.challenge.calendar_icon:
+            return request.build_absolute_uri(obj.challenge.calendar_icon.url)
+        return (
+            request.build_absolute_uri(obj.challenge.icon.url)
+            if obj.challenge.icon
+            else None
+        )
 
     def get_completion_dates(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return []
 
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            if not user_challenges:
-                return []
-
-            user_challenge = user_challenges[0]
-            if hasattr(user_challenge, "_prefetched_completions"):
-                return [
-                    completion.completed_at.date().isoformat()
-                    for completion in user_challenge._prefetched_completions
-                ]
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-
-        if not user_challenge:
-            return []
-
         month = self.context.get("month", timezone.now().month)
         year = self.context.get("year", timezone.now().year)
 
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_completions"):
+            return [
+                completion.completed_at.date().isoformat()
+                for completion in obj._prefetched_completions
+            ]
+
+        # Fallback to database query if prefetch didn't happen
         completion_dates = UserChallengeCompletion.objects.filter(
-            user_challenge=user_challenge,
+            user_challenge=obj,
             completed_at__year=year,
             completed_at__month=month,
         ).dates("completed_at", "day")

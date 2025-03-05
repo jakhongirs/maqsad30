@@ -87,7 +87,7 @@ class ChallengeCalendarAPIView(RetrieveAPIView):
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
-            return Challenge.objects.all()
+            return UserChallenge.objects.none()
 
         try:
             month = int(self.request.query_params.get("month", timezone.now().month))
@@ -97,21 +97,17 @@ class ChallengeCalendarAPIView(RetrieveAPIView):
         except ValueError:
             raise ValidationError("Invalid month or year format")
 
-        return Challenge.objects.prefetch_related(
-            Prefetch(
-                "user_challenges",
-                queryset=UserChallenge.objects.filter(
-                    user=self.request.user
-                ).prefetch_related(
-                    Prefetch(
-                        "completions",
-                        queryset=UserChallengeCompletion.objects.filter(
-                            completed_at__year=year, completed_at__month=month
-                        ),
-                        to_attr="_prefetched_completions",
-                    )
-                ),
-                to_attr="_prefetched_user_challenges",
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserChallengeCompletion.objects.filter(
+                        completed_at__year=year, completed_at__month=month
+                    ),
+                    to_attr="_prefetched_completions",
+                )
             )
         )
 
