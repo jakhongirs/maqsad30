@@ -363,3 +363,14 @@ class UserChallengeDeleteAPIView(DestroyAPIView):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserChallengeDetailAPIView(RetrieveAPIView):
+    serializer_class = UserChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return UserChallenge.objects.filter(user=self.request.user).select_related(
+            "challenge"
+        )

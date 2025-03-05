@@ -15,6 +15,7 @@ from apps.main.views import (
     UserChallengeCompletionAPIView,
     UserChallengeCreateAPIView,
     UserChallengeDeleteAPIView,
+    UserChallengeDetailAPIView,
     UserChallengeListAPIView,
 )
 
@@ -45,6 +46,11 @@ urlpatterns = [
         "user-challenges/create/",
         UserChallengeCreateAPIView.as_view(),
         name="user-challenge-create",
+    ),
+    path(
+        "user-challenges/<int:id>/",
+        UserChallengeDetailAPIView.as_view(),
+        name="user-challenge-detail",
     ),
     path(
         "user-challenges/<int:id>/delete/",
