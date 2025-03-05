@@ -262,10 +262,26 @@ class TournamentListAPIView(ListAPIView):
 
 
 class TournamentDetailAPIView(RetrieveAPIView):
-    queryset = Tournament.objects.prefetch_related("challenges")
     serializer_class = TournamentDetailSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Tournament.objects.prefetch_related("challenges")
+
+        return Tournament.objects.prefetch_related(
+            Prefetch(
+                "challenges",
+                queryset=Challenge.objects.prefetch_related(
+                    Prefetch(
+                        "user_challenges",
+                        queryset=UserChallenge.objects.filter(user=self.request.user),
+                        to_attr="_prefetched_user_challenges",
+                    )
+                ),
+            )
+        )
 
 
 class UpdateUserChallengeStreaksAPIView(APIView):

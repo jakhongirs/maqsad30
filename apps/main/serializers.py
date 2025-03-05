@@ -219,8 +219,45 @@ class TournamentListSerializer(serializers.ModelSerializer):
         )
 
 
+class TournamentChallengeSerializer(serializers.ModelSerializer):
+    current_streak = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Challenge
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "video_instruction_url",
+            "video_instruction_title",
+            "start_time",
+            "end_time",
+            "created_at",
+            "updated_at",
+            "rules",
+            "current_streak",
+        )
+
+    def get_current_streak(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_user_challenges"):
+            user_challenges = obj._prefetched_user_challenges
+            return user_challenges[0].current_streak if user_challenges else 0
+
+        # Fallback to database query if prefetch didn't happen
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj
+        ).first()
+
+        return user_challenge.current_streak if user_challenge else 0
+
+
 class TournamentDetailSerializer(serializers.ModelSerializer):
-    challenges = ChallengeListSerializer(many=True, read_only=True)
+    challenges = TournamentChallengeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Tournament
