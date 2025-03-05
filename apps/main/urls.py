@@ -6,7 +6,6 @@ from apps.main.views import (
     Challenge30DaysPlusStreakView,
     ChallengeAwardListView,
     ChallengeCalendarAPIView,
-    ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
     TournamentDetailAPIView,
@@ -31,11 +30,6 @@ urlpatterns = [
     ),
     # Challenge URLs
     path("challenges/", ChallengeListAPIView.as_view(), name="challenge-list"),
-    path(
-        "challenges/<int:id>/",
-        ChallengeDetailAPIView.as_view(),
-        name="challenge-detail",
-    ),
     # User Challenge URLs
     path(
         "user-challenges/",

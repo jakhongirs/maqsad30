@@ -27,58 +27,6 @@ class ChallengeListSerializer(serializers.ModelSerializer):
         )
 
 
-class ChallengeDetailSerializer(serializers.ModelSerializer):
-    total_completions = serializers.SerializerMethodField()
-    is_completed_today = serializers.SerializerMethodField()
-
-    def get_total_completions(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-
-        # Use prefetched data instead of making a new query
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].total_completions if user_challenges else 0
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-        return user_challenge.total_completions if user_challenge else 0
-
-    def get_is_completed_today(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return False
-
-        # Use annotated field if available
-        if hasattr(obj, "is_completed_today"):
-            return obj.is_completed_today
-
-        # Fallback to database query
-        today = timezone.now().date()
-        return UserChallenge.objects.filter(
-            user=request.user, challenge=obj, last_completion_date=today
-        ).exists()
-
-    class Meta:
-        model = Challenge
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "video_instruction_url",
-            "video_instruction_title",
-            "start_time",
-            "end_time",
-            "created_at",
-            "updated_at",
-            "total_completions",
-            "is_completed_today",
-        )
-
-
 class UserChallengeCompletionSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserChallengeCompletion
