@@ -74,20 +74,23 @@ class ChallengeDetailAPIView(RetrieveAPIView):
             return Challenge.objects.all()
 
         today = timezone.now().date()
-        return Challenge.objects.prefetch_related(
-            Prefetch(
-                "user_challenges",
-                queryset=UserChallenge.objects.filter(user=self.request.user),
-                to_attr="_prefetched_user_challenges",
-            )
-        ).annotate(
+        return Challenge.objects.annotate(
+            total_completions=models.Coalesce(
+                models.Subquery(
+                    UserChallenge.objects.filter(
+                        user=self.request.user, challenge=models.OuterRef("pk")
+                    ).values("total_completions")[:1],
+                    output_field=models.IntegerField(),
+                ),
+                models.Value(0),
+            ),
             is_completed_today=models.Exists(
                 UserChallenge.objects.filter(
                     user=self.request.user,
                     challenge=models.OuterRef("pk"),
                     last_completion_date=today,
                 )
-            )
+            ),
         )
 
     def get_serializer_context(self):
