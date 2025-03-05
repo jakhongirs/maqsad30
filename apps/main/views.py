@@ -56,7 +56,7 @@ class ChallengeListAPIView(ListAPIView):
                     to_attr="_prefetched_user_challenges",
                 )
             )
-            .order_by("-user_current_streak", "-created_at")
+            .order_by("user_current_streak", "-created_at")
         )
 
     def get_serializer_context(self):
