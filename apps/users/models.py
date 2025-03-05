@@ -40,10 +40,10 @@ class User(AbstractUser, BaseModel):
     is_deleted = models.BooleanField(_("Is deleted"), default=False)
     email = models.EmailField(_("Email"), unique=True, null=True, blank=True)
     telegram_id = models.CharField(
-        _("Telegram ID"), max_length=32, unique=True, null=True, blank=True
+        _("Telegram ID"), max_length=100, unique=True, null=True, blank=True
     )
     telegram_username = models.CharField(
-        _("Telegram Username"), max_length=32, null=True, blank=True
+        _("Telegram Username"), max_length=100, null=True, blank=True
     )
     telegram_photo_url = models.URLField(
         _("Telegram Photo URL"), max_length=255, null=True, blank=True
