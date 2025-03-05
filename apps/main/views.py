@@ -40,12 +40,23 @@ class ChallengeListAPIView(ListAPIView):
         if not self.request.user.is_authenticated:
             return Challenge.objects.all()
 
-        return Challenge.objects.prefetch_related(
-            Prefetch(
-                "user_challenges",
-                queryset=UserChallenge.objects.filter(user=self.request.user),
-                to_attr="_prefetched_user_challenges",
+        return (
+            Challenge.objects.annotate(
+                user_current_streak=models.Subquery(
+                    UserChallenge.objects.filter(
+                        user=self.request.user, challenge=models.OuterRef("pk")
+                    ).values("current_streak")[:1],
+                    output_field=models.PositiveIntegerField(),
+                )
             )
+            .prefetch_related(
+                Prefetch(
+                    "user_challenges",
+                    queryset=UserChallenge.objects.filter(user=self.request.user),
+                    to_attr="_prefetched_user_challenges",
+                )
+            )
+            .order_by("-user_current_streak", "-created_at")
         )
 
     def get_serializer_context(self):
