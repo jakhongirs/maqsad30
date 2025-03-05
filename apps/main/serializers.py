@@ -11,24 +11,6 @@ from apps.main.models import (
 
 
 class ChallengeListSerializer(serializers.ModelSerializer):
-    current_streak = serializers.SerializerMethodField()
-
-    def get_current_streak(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-
-        # Use prefetched data instead of making a new query
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].current_streak if user_challenges else 0
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-        return user_challenge.current_streak if user_challenge else 0
-
     class Meta:
         model = Challenge
         fields = (
@@ -41,7 +23,7 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             "end_time",
             "created_at",
             "updated_at",
-            "current_streak",
+            "rules",
         )
 
 

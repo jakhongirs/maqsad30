@@ -28,6 +28,7 @@ class Challenge(BaseModel):
     )
     start_time = models.TimeField(_("Start time"))
     end_time = models.TimeField(_("End time"))
+    rules = models.TextField(_("Rules"), null=True, blank=True)
 
     def clean(self):
         if self.start_time >= self.end_time:

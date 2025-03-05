@@ -35,33 +35,7 @@ from apps.users.permissions import IsTelegramUser
 class ChallengeListAPIView(ListAPIView):
     serializer_class = ChallengeListSerializer
     permission_classes = [IsTelegramUser]
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return Challenge.objects.all()
-
-        return (
-            Challenge.objects.annotate(
-                user_current_streak=models.Subquery(
-                    UserChallenge.objects.filter(
-                        user=self.request.user, challenge=models.OuterRef("pk")
-                    ).values("current_streak")[:1],
-                    output_field=models.PositiveIntegerField(),
-                )
-            )
-            .prefetch_related(
-                Prefetch(
-                    "user_challenges",
-                    queryset=UserChallenge.objects.filter(user=self.request.user),
-                    to_attr="_prefetched_user_challenges",
-                )
-            )
-            .order_by("user_current_streak", "-created_at")
-        )
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        return context
+    queryset = Challenge.objects.all()
 
 
 class ChallengeDetailAPIView(RetrieveAPIView):
