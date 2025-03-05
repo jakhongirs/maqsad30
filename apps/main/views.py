@@ -3,7 +3,12 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    DestroyAPIView,
+    ListAPIView,
+    RetrieveAPIView,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -345,3 +350,16 @@ class UserChallengeListAPIView(ListAPIView):
             .select_related("challenge")
             .order_by("-created_at")
         )
+
+
+class UserChallengeDeleteAPIView(DestroyAPIView):
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return UserChallenge.objects.filter(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
