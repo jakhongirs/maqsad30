@@ -328,10 +328,10 @@ class UserChallengeCreateAPIView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user_challenges = serializer.save()
+        user_challenge = serializer.save()
 
-        # Serialize the created user challenges for response
-        response_serializer = UserChallengeListSerializer(user_challenges, many=True)
+        # Serialize the created user challenge for response
+        response_serializer = UserChallengeListSerializer(user_challenge)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
