@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.main.models import (
@@ -293,4 +294,44 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
             "challenges",
             "created_at",
             "updated_at",
+        )
+
+
+class UserChallengeCreateSerializer(serializers.Serializer):
+    challenge_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text=_("List of challenge IDs to create UserChallenges for"),
+    )
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        challenge_ids = validated_data["challenge_ids"]
+
+        # Get all valid challenges
+        challenges = Challenge.objects.filter(id__in=challenge_ids)
+
+        # Create UserChallenge objects
+        user_challenges = []
+        for challenge in challenges:
+            user_challenge, created = UserChallenge.objects.get_or_create(
+                user=user, challenge=challenge
+            )
+            user_challenges.append(user_challenge)
+
+        return user_challenges
+
+
+class UserChallengeListSerializer(serializers.ModelSerializer):
+    challenge = ChallengeListSerializer()
+
+    class Meta:
+        model = UserChallenge
+        fields = (
+            "id",
+            "challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "started_at",
         )

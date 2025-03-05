@@ -27,6 +27,8 @@ from apps.main.serializers import (
     TournamentDetailSerializer,
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
+    UserChallengeCreateSerializer,
+    UserChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
@@ -316,4 +318,30 @@ class UpdateUserChallengeStreaksAPIView(APIView):
                 "task_id": str(task.id),
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class UserChallengeCreateAPIView(CreateAPIView):
+    serializer_class = UserChallengeCreateSerializer
+    permission_classes = [IsTelegramUser]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_challenges = serializer.save()
+
+        # Serialize the created user challenges for response
+        response_serializer = UserChallengeListSerializer(user_challenges, many=True)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class UserChallengeListAPIView(ListAPIView):
+    serializer_class = UserChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .order_by("-created_at")
         )
