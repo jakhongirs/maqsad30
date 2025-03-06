@@ -69,18 +69,20 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_completions"):
             return [
-                completion.completed_at.date().isoformat()
+                timezone.localtime(completion.completed_at).isoformat()
                 for completion in obj._prefetched_completions
             ]
 
         # Fallback to database query if prefetch didn't happen
-        completion_dates = UserChallengeCompletion.objects.filter(
+        completions = UserChallengeCompletion.objects.filter(
             user_challenge=obj,
             completed_at__year=year,
             completed_at__month=month,
-        ).dates("completed_at", "day")
+        ).values_list("completed_at", flat=True)
 
-        return [date.isoformat() for date in completion_dates]
+        return [
+            timezone.localtime(completion).isoformat() for completion in completions
+        ]
 
 
 class AllChallengesCalendarSerializer(serializers.Serializer):
