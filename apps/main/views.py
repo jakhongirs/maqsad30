@@ -328,7 +328,7 @@ class UserChallengeListAPIView(ListAPIView):
         return (
             UserChallenge.objects.filter(user=self.request.user)
             .select_related("challenge")
-            .order_by("-created_at")
+            .order_by("-current_streak", "-created_at")
         )
 
 
