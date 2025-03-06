@@ -76,6 +76,7 @@ class UserChallenge(BaseModel):
         related_name="user_challenges",
         verbose_name=_("Challenge"),
     )
+    is_active = models.BooleanField(_("Is Active"), default=True)
     current_streak = models.PositiveIntegerField(_("Current streak"), default=0)
     highest_streak = models.PositiveIntegerField(_("Highest streak"), default=0)
     total_completions = models.PositiveIntegerField(_("Total completions"), default=0)
