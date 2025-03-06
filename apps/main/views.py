@@ -31,6 +31,7 @@ from apps.main.serializers import (
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
     UserChallengeCreateSerializer,
+    UserChallengeDetailSerializer,
     UserChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
@@ -345,11 +346,22 @@ class UserChallengeDeleteAPIView(DestroyAPIView):
 
 
 class UserChallengeDetailAPIView(RetrieveAPIView):
-    serializer_class = UserChallengeListSerializer
+    serializer_class = UserChallengeDetailSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
 
     def get_queryset(self):
-        return UserChallenge.objects.filter(user=self.request.user).select_related(
-            "challenge"
+        today = timezone.now().date()
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserChallengeCompletion.objects.filter(
+                        completed_at__date=today
+                    ),
+                    to_attr="_prefetched_completions_today",
+                )
+            )
         )

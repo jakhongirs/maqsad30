@@ -305,3 +305,26 @@ class UserChallengeListSerializer(serializers.ModelSerializer):
             "last_completion_date",
             "started_at",
         )
+
+
+class UserChallengeDetailSerializer(UserChallengeListSerializer):
+    is_completed_today = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserChallenge
+        fields = (
+            "id",
+            "challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "started_at",
+            "is_completed_today",
+        )
+
+    def get_is_completed_today(self, obj):
+        today = timezone.now().date()
+        return UserChallengeCompletion.objects.filter(
+            user_challenge=obj, completed_at__date=today
+        ).exists()
