@@ -5,7 +5,7 @@ from .models import Challenge, Tournament
 
 @register(Challenge)
 class ChallengeTranslationOptions(TranslationOptions):
-    fields = ("title",)
+    fields = ("title", "rules")
 
 
 @register(Tournament)
