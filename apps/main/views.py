@@ -313,9 +313,23 @@ class UserChallengeCreateAPIView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user_challenge = serializer.save()
 
-        # Serialize the created user challenge for response
+        # Check if an inactive challenge exists
+        challenge_id = serializer.validated_data["challenge"].id
+        existing_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge_id=challenge_id, is_active=False
+        ).first()
+
+        if existing_challenge:
+            # Reactivate the existing challenge
+            existing_challenge.is_active = True
+            existing_challenge.started_at = timezone.now()
+            existing_challenge.save()
+            response_serializer = UserChallengeListSerializer(existing_challenge)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+        # Create new challenge if no inactive one exists
+        user_challenge = serializer.save()
         response_serializer = UserChallengeListSerializer(user_challenge)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -326,7 +340,7 @@ class UserChallengeListAPIView(ListAPIView):
 
     def get_queryset(self):
         return (
-            UserChallenge.objects.filter(user=self.request.user)
+            UserChallenge.objects.filter(user=self.request.user, is_active=True)
             .select_related("challenge")
             .order_by("-current_streak", "-created_at")
         )
@@ -341,7 +355,8 @@ class UserChallengeDeleteAPIView(DestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        self.perform_destroy(instance)
+        instance.is_active = False
+        instance.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
