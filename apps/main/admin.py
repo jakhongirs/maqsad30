@@ -27,8 +27,9 @@ class UserChallengeAdmin(admin.ModelAdmin):
         "total_completions",
         "last_completion_date",
         "started_at",
+        "is_active",
     )
-    list_filter = ("challenge", "last_completion_date")
+    list_filter = ("challenge", "last_completion_date", "is_active")
     search_fields = ("user__username", "challenge__title")
 
 
