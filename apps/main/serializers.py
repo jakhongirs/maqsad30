@@ -31,6 +31,8 @@ class ChallengeListSerializer(serializers.ModelSerializer):
 class TournamentChallengeListSerializer(serializers.ModelSerializer):
     current_streak = serializers.SerializerMethodField()
     user_challenge_id = serializers.SerializerMethodField()
+    total_completions = serializers.SerializerMethodField()
+    is_completed_today = serializers.SerializerMethodField()
 
     class Meta:
         model = Challenge
@@ -38,11 +40,18 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "icon",
+            "calendar_icon",
+            "award_icon",
+            "video_instruction_url",
+            "video_instruction_title",
+            "rules",
             "start_time",
             "end_time",
             "created_at",
             "current_streak",
             "user_challenge_id",
+            "total_completions",
+            "is_completed_today",
         )
 
     def get_current_streak(self, obj):
@@ -53,16 +62,19 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].current_streak if user_challenges else 0
+            active_challenge = next(
+                (uc for uc in user_challenges if uc.is_active), None
+            )
+            return active_challenge.current_streak if active_challenge else 0
 
         # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
+            user=request.user, challenge=obj, is_active=True
         ).first()
 
         return user_challenge.current_streak if user_challenge else 0
 
-    def get_userchallenge_id(self, obj):
+    def get_user_challenge_id(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
@@ -70,14 +82,64 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].id if user_challenges else None
+            active_challenge = next(
+                (uc for uc in user_challenges if uc.is_active), None
+            )
+            return active_challenge.id if active_challenge else None
 
         # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
+            user=request.user, challenge=obj, is_active=True
         ).first()
 
         return user_challenge.id if user_challenge else None
+
+    def get_total_completions(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_user_challenges"):
+            user_challenges = obj._prefetched_user_challenges
+            active_challenge = next(
+                (uc for uc in user_challenges if uc.is_active), None
+            )
+            return active_challenge.total_completions if active_challenge else 0
+
+        # Fallback to database query if prefetch didn't happen
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        return user_challenge.total_completions if user_challenge else 0
+
+    def get_is_completed_today(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        today = timezone.now().date()
+
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_user_challenges"):
+            user_challenges = obj._prefetched_user_challenges
+            active_challenge = next(
+                (uc for uc in user_challenges if uc.is_active), None
+            )
+            if not active_challenge:
+                return False
+
+            if hasattr(active_challenge, "_prefetched_completions_today"):
+                return bool(active_challenge._prefetched_completions_today)
+
+        # Fallback to database query if prefetch didn't happen
+        return UserChallengeCompletion.objects.filter(
+            user_challenge__user=request.user,
+            user_challenge__challenge=obj,
+            user_challenge__is_active=True,
+            completed_at__date=today,
+        ).exists()
 
 
 class UserChallengeCompletionSerializer(serializers.ModelSerializer):
@@ -122,7 +184,7 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_completions"):
             return [
-                timezone.localtime(completion.completed_at).isoformat()
+                timezone.localtime(completion.completed_at).date().isoformat()
                 for completion in obj._prefetched_completions
             ]
 
@@ -134,7 +196,8 @@ class ChallengeCalendarSerializer(serializers.ModelSerializer):
         ).values_list("completed_at", flat=True)
 
         return [
-            timezone.localtime(completion).isoformat() for completion in completions
+            timezone.localtime(completion).date().isoformat()
+            for completion in completions
         ]
 
 
@@ -369,7 +432,7 @@ class UserChallengeDetailSerializer(UserChallengeListSerializer):
         ).exists()
 
 
-class UserTournamentListSerializer(serializers.ModelSerializer):
+class UserTournamentSerializer(serializers.ModelSerializer):
     tournament = TournamentListSerializer()
 
     class Meta:
@@ -381,4 +444,21 @@ class UserTournamentListSerializer(serializers.ModelSerializer):
             "total_failures",
             "is_failed",
             "started_at",
+        )
+
+
+class TournamentDetailSerializer(serializers.ModelSerializer):
+    challenges = TournamentChallengeListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Tournament
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "finish_date",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "challenges",
         )

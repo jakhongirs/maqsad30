@@ -29,12 +29,13 @@ from apps.main.serializers import (
     ChallengeCalendarSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
+    TournamentChallengeListSerializer,
+    TournamentDetailSerializer,
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
     UserChallengeCreateSerializer,
     UserChallengeDetailSerializer,
     UserChallengeListSerializer,
-    UserTournamentListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
@@ -72,10 +73,22 @@ class UserChallengeCompletionAPIView(CreateAPIView):
         now = timezone.now()
         current_date = now.date()
 
-        # Get or create UserChallenge
-        user_challenge, _ = UserChallenge.objects.get_or_create(
+        # Get existing UserChallenge or create new one
+        user_challenge = UserChallenge.objects.filter(
             user=self.request.user, challenge=challenge
-        )
+        ).first()
+
+        if user_challenge:
+            if not user_challenge.is_active:
+                # Reactivate the challenge if it exists but is inactive
+                user_challenge.is_active = True
+                user_challenge.started_at = now
+                user_challenge.save()
+        else:
+            # Create new UserChallenge if none exists
+            user_challenge = UserChallenge.objects.create(
+                user=self.request.user, challenge=challenge
+            )
 
         # Check if user has already completed the challenge today
         already_completed = UserChallengeCompletion.objects.filter(
@@ -293,6 +306,7 @@ class TournamentListAPIView(ListAPIView):
 
     def get_queryset(self):
         now = timezone.now()
+        today = now.date()
         if not self.request.user.is_authenticated:
             return Tournament.objects.filter(
                 is_active=True, finish_date__gte=now
@@ -307,7 +321,15 @@ class TournamentListAPIView(ListAPIView):
                         Prefetch(
                             "user_challenges",
                             queryset=UserChallenge.objects.filter(
-                                user=self.request.user
+                                user=self.request.user, is_active=True
+                            ).prefetch_related(
+                                Prefetch(
+                                    "completions",
+                                    queryset=UserChallengeCompletion.objects.filter(
+                                        completed_at__date=today
+                                    ),
+                                    to_attr="_prefetched_completions_today",
+                                )
                             ),
                             to_attr="_prefetched_user_challenges",
                         )
@@ -415,18 +437,61 @@ class UserChallengeDetailAPIView(RetrieveAPIView):
         )
 
 
-class UserTournamentListAPIView(ListAPIView):
+class UserTournamentAPIView(RetrieveAPIView):
     """
-    API view to list all UserTournaments for a specific Tournament.
+    API view to get tournament details with current user's participation data
     """
 
-    serializer_class = UserTournamentListSerializer
+    serializer_class = TournamentDetailSerializer
     permission_classes = [IsTelegramUser]
+    lookup_url_kwarg = "tournament_id"
 
     def get_queryset(self):
-        tournament_id = self.kwargs.get("tournament_id")
-        return (
-            UserTournament.objects.filter(tournament_id=tournament_id)
-            .select_related("user", "tournament")
-            .order_by("-started_at")
+        if not self.request.user.is_authenticated:
+            return Tournament.objects.prefetch_related("challenges")
+
+        return Tournament.objects.prefetch_related(
+            Prefetch(
+                "challenges",
+                queryset=Challenge.objects.prefetch_related(
+                    Prefetch(
+                        "user_challenges",
+                        queryset=UserChallenge.objects.filter(user=self.request.user),
+                        to_attr="_prefetched_user_challenges",
+                    )
+                ),
+            )
+        )
+
+
+class ChallengeDetailAPIView(RetrieveAPIView):
+    """
+    API view to get challenge details with user's participation data
+    """
+
+    serializer_class = TournamentChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Challenge.objects.all()
+
+        today = timezone.now().date()
+        return Challenge.objects.prefetch_related(
+            Prefetch(
+                "user_challenges",
+                queryset=UserChallenge.objects.filter(
+                    user=self.request.user, is_active=True
+                ).prefetch_related(
+                    Prefetch(
+                        "completions",
+                        queryset=UserChallengeCompletion.objects.filter(
+                            completed_at__date=today
+                        ),
+                        to_attr="_prefetched_completions_today",
+                    )
+                ),
+                to_attr="_prefetched_user_challenges",
+            )
         )
