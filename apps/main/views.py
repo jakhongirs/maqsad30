@@ -1,9 +1,13 @@
-from django.db import models
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView
+from rest_framework.generics import (
+    CreateAPIView,
+    DestroyAPIView,
+    ListAPIView,
+    RetrieveAPIView,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,12 +25,14 @@ from apps.main.serializers import (
     Challenge30DaysPlusStreakSerializer,
     ChallengeAwardSerializer,
     ChallengeCalendarSerializer,
-    ChallengeDetailSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
     TournamentDetailSerializer,
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
+    UserChallengeCreateSerializer,
+    UserChallengeDetailSerializer,
+    UserChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
@@ -35,64 +41,7 @@ from apps.users.permissions import IsTelegramUser
 class ChallengeListAPIView(ListAPIView):
     serializer_class = ChallengeListSerializer
     permission_classes = [IsTelegramUser]
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return Challenge.objects.all()
-
-        return (
-            Challenge.objects.annotate(
-                user_current_streak=models.Subquery(
-                    UserChallenge.objects.filter(
-                        user=self.request.user, challenge=models.OuterRef("pk")
-                    ).values("current_streak")[:1],
-                    output_field=models.PositiveIntegerField(),
-                )
-            )
-            .prefetch_related(
-                Prefetch(
-                    "user_challenges",
-                    queryset=UserChallenge.objects.filter(user=self.request.user),
-                    to_attr="_prefetched_user_challenges",
-                )
-            )
-            .order_by("user_current_streak", "-created_at")
-        )
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        return context
-
-
-class ChallengeDetailAPIView(RetrieveAPIView):
-    serializer_class = ChallengeDetailSerializer
-    permission_classes = [IsTelegramUser]
-    lookup_field = "id"
-
-    def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return Challenge.objects.all()
-
-        today = timezone.now().date()
-        return Challenge.objects.prefetch_related(
-            Prefetch(
-                "user_challenges",
-                queryset=UserChallenge.objects.filter(user=self.request.user),
-                to_attr="_prefetched_user_challenges",
-            )
-        ).annotate(
-            is_completed_today=models.Exists(
-                UserChallenge.objects.filter(
-                    user=self.request.user,
-                    challenge=models.OuterRef("pk"),
-                    last_completion_date=today,
-                )
-            )
-        )
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        return context
+    queryset = Challenge.objects.all()
 
 
 class UserChallengeCompletionAPIView(CreateAPIView):
@@ -139,7 +88,7 @@ class ChallengeCalendarAPIView(RetrieveAPIView):
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
-            return Challenge.objects.all()
+            return UserChallenge.objects.none()
 
         try:
             month = int(self.request.query_params.get("month", timezone.now().month))
@@ -149,21 +98,17 @@ class ChallengeCalendarAPIView(RetrieveAPIView):
         except ValueError:
             raise ValidationError("Invalid month or year format")
 
-        return Challenge.objects.prefetch_related(
-            Prefetch(
-                "user_challenges",
-                queryset=UserChallenge.objects.filter(
-                    user=self.request.user
-                ).prefetch_related(
-                    Prefetch(
-                        "completions",
-                        queryset=UserChallengeCompletion.objects.filter(
-                            completed_at__year=year, completed_at__month=month
-                        ),
-                        to_attr="_prefetched_completions",
-                    )
-                ),
-                to_attr="_prefetched_user_challenges",
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserChallengeCompletion.objects.filter(
+                        completed_at__year=year, completed_at__month=month
+                    ),
+                    to_attr="_prefetched_completions",
+                )
             )
         )
 
@@ -318,10 +263,26 @@ class TournamentListAPIView(ListAPIView):
 
 
 class TournamentDetailAPIView(RetrieveAPIView):
-    queryset = Tournament.objects.prefetch_related("challenges")
     serializer_class = TournamentDetailSerializer
     permission_classes = [IsTelegramUser]
     lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Tournament.objects.prefetch_related("challenges")
+
+        return Tournament.objects.prefetch_related(
+            Prefetch(
+                "challenges",
+                queryset=Challenge.objects.prefetch_related(
+                    Prefetch(
+                        "user_challenges",
+                        queryset=UserChallenge.objects.filter(user=self.request.user),
+                        to_attr="_prefetched_user_challenges",
+                    )
+                ),
+            )
+        )
 
 
 class UpdateUserChallengeStreaksAPIView(APIView):
@@ -342,4 +303,65 @@ class UpdateUserChallengeStreaksAPIView(APIView):
                 "task_id": str(task.id),
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class UserChallengeCreateAPIView(CreateAPIView):
+    serializer_class = UserChallengeCreateSerializer
+    permission_classes = [IsTelegramUser]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_challenge = serializer.save()
+
+        # Serialize the created user challenge for response
+        response_serializer = UserChallengeListSerializer(user_challenge)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class UserChallengeListAPIView(ListAPIView):
+    serializer_class = UserChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .order_by("-created_at")
+        )
+
+
+class UserChallengeDeleteAPIView(DestroyAPIView):
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return UserChallenge.objects.filter(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UserChallengeDetailAPIView(RetrieveAPIView):
+    serializer_class = UserChallengeDetailSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        today = timezone.now().date()
+        return (
+            UserChallenge.objects.filter(user=self.request.user)
+            .select_related("challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserChallengeCompletion.objects.filter(
+                        completed_at__date=today
+                    ),
+                    to_attr="_prefetched_completions_today",
+                )
+            )
         )

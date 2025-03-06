@@ -28,6 +28,7 @@ class Challenge(BaseModel):
     )
     start_time = models.TimeField(_("Start time"))
     end_time = models.TimeField(_("End time"))
+    rules = models.TextField(_("Rules"), null=True, blank=True)
 
     def clean(self):
         if self.start_time >= self.end_time:
@@ -168,7 +169,12 @@ class UserChallengeCompletion(BaseModel):
         related_name="completions",
         verbose_name=_("User challenge"),
     )
-    completed_at = models.DateTimeField(_("Completed at"), auto_now_add=True)
+    completed_at = models.DateTimeField(_("Completed at"))
+
+    def save(self, *args, **kwargs):
+        if not self.completed_at:
+            self.completed_at = timezone.localtime()
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["-completed_at"]
