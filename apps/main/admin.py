@@ -28,6 +28,7 @@ class UserChallengeAdmin(admin.ModelAdmin):
         "highest_streak",
         "total_completions",
         "last_completion_date",
+        "started_at",
     )
     list_filter = ("challenge", "last_completion_date")
     search_fields = ("user__username", "challenge__title")
