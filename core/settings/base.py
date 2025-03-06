@@ -224,6 +224,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
         "schedule": crontab(hour=0, minute=0),
     },
+    "process-tournament-day-end": {
+        "task": "apps.main.tasks.process_tournament_day_end",
+        "schedule": crontab(minute=0, hour=0),
+    },
+    "process-tournament-awards": {
+        "task": "apps.main.tasks.process_tournament_awards",
+        "schedule": crontab(minute=0, hour=15),
+    },
 }
 
 sentry_sdk.init(
