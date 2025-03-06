@@ -62,14 +62,11 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            active_challenge = next(
-                (uc for uc in user_challenges if uc.is_active), None
-            )
-            return active_challenge.current_streak if active_challenge else 0
+            return user_challenges[0].current_streak if user_challenges else 0
 
         # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj, is_active=True
+            user=request.user, challenge=obj
         ).first()
 
         return user_challenge.current_streak if user_challenge else 0
@@ -82,14 +79,11 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            active_challenge = next(
-                (uc for uc in user_challenges if uc.is_active), None
-            )
-            return active_challenge.id if active_challenge else None
+            return user_challenges[0].id if user_challenges else None
 
         # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj, is_active=True
+            user=request.user, challenge=obj
         ).first()
 
         return user_challenge.id if user_challenge else None
@@ -102,14 +96,11 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            active_challenge = next(
-                (uc for uc in user_challenges if uc.is_active), None
-            )
-            return active_challenge.total_completions if active_challenge else 0
+            return user_challenges[0].total_completions if user_challenges else 0
 
         # Fallback to database query if prefetch didn't happen
         user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj, is_active=True
+            user=request.user, challenge=obj
         ).first()
 
         return user_challenge.total_completions if user_challenge else 0
@@ -124,20 +115,17 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
         # Use prefetched data if available
         if hasattr(obj, "_prefetched_user_challenges"):
             user_challenges = obj._prefetched_user_challenges
-            active_challenge = next(
-                (uc for uc in user_challenges if uc.is_active), None
-            )
-            if not active_challenge:
+            if not user_challenges:
                 return False
 
-            if hasattr(active_challenge, "_prefetched_completions_today"):
-                return bool(active_challenge._prefetched_completions_today)
+            user_challenge = user_challenges[0]
+            if hasattr(user_challenge, "_prefetched_completions_today"):
+                return bool(user_challenge._prefetched_completions_today)
 
         # Fallback to database query if prefetch didn't happen
         return UserChallengeCompletion.objects.filter(
             user_challenge__user=request.user,
             user_challenge__challenge=obj,
-            user_challenge__is_active=True,
             completed_at__date=today,
         ).exists()
 

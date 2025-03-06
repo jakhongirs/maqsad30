@@ -78,13 +78,7 @@ class UserChallengeCompletionAPIView(CreateAPIView):
             user=self.request.user, challenge=challenge
         ).first()
 
-        if user_challenge:
-            if not user_challenge.is_active:
-                # Reactivate the challenge if it exists but is inactive
-                user_challenge.is_active = True
-                user_challenge.started_at = now
-                user_challenge.save()
-        else:
+        if not user_challenge:
             # Create new UserChallenge if none exists
             user_challenge = UserChallenge.objects.create(
                 user=self.request.user, challenge=challenge
@@ -321,7 +315,7 @@ class TournamentListAPIView(ListAPIView):
                         Prefetch(
                             "user_challenges",
                             queryset=UserChallenge.objects.filter(
-                                user=self.request.user, is_active=True
+                                user=self.request.user
                             ).prefetch_related(
                                 Prefetch(
                                     "completions",
@@ -369,21 +363,18 @@ class UserChallengeCreateAPIView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Check if an inactive challenge exists
+        # Check if challenge exists
         challenge_id = serializer.validated_data["challenge"].id
         existing_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge_id=challenge_id, is_active=False
+            user=request.user, challenge_id=challenge_id
         ).first()
 
         if existing_challenge:
-            # Reactivate the existing challenge
-            existing_challenge.is_active = True
-            existing_challenge.started_at = timezone.now()
-            existing_challenge.save()
+            # Return existing challenge
             response_serializer = UserChallengeListSerializer(existing_challenge)
             return Response(response_serializer.data, status=status.HTTP_200_OK)
 
-        # Create new challenge if no inactive one exists
+        # Create new challenge
         user_challenge = serializer.save()
         response_serializer = UserChallengeListSerializer(user_challenge)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -395,7 +386,7 @@ class UserChallengeListAPIView(ListAPIView):
 
     def get_queryset(self):
         return (
-            UserChallenge.objects.filter(user=self.request.user, is_active=True)
+            UserChallenge.objects.filter(user=self.request.user)
             .select_related("challenge")
             .order_by("-current_streak", "-created_at")
         )
@@ -410,8 +401,7 @@ class UserChallengeDeleteAPIView(DestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.is_active = False
-        instance.save()
+        instance.delete()  # This will use our custom delete() method that handles the 30-day streak logic
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -482,7 +472,7 @@ class ChallengeDetailAPIView(RetrieveAPIView):
             Prefetch(
                 "user_challenges",
                 queryset=UserChallenge.objects.filter(
-                    user=self.request.user, is_active=True
+                    user=self.request.user
                 ).prefetch_related(
                     Prefetch(
                         "completions",

@@ -84,7 +84,6 @@ class UserChallenge(BaseModel):
         related_name="user_challenges",
         verbose_name=_("Challenge"),
     )
-    is_active = models.BooleanField(_("Is Active"), default=True)
     current_streak = models.PositiveIntegerField(_("Current streak"), default=0)
     highest_streak = models.PositiveIntegerField(_("Highest streak"), default=0)
     total_completions = models.PositiveIntegerField(_("Total completions"), default=0)
@@ -99,9 +98,66 @@ class UserChallenge(BaseModel):
         verbose_name = _("User Challenge")
         verbose_name_plural = _("User Challenges")
 
+    def has_failed(self):
+        """
+        Check if the challenge has failed based on the conditions:
+        1. Two consecutive days missed
+        2. Two days missed in total
+        """
+        if not self.last_completion_date:
+            return False
+
+        today = timezone.now().date()
+        completions = list(
+            self.completions.filter(
+                completed_at__gte=self.started_at, completed_at__date__lte=today
+            )
+            .order_by("completed_at__date")
+            .values_list("completed_at", flat=True)
+        )
+
+        if not completions:
+            return False
+
+        # Convert to dates and remove duplicates
+        completion_dates = sorted(list({c.date() for c in completions}))
+
+        # Check for two consecutive missed days
+        for i in range(len(completion_dates) - 1):
+            date_diff = (completion_dates[i + 1] - completion_dates[i]).days
+            if (
+                date_diff > 2
+            ):  # More than 2 days between completions means 2 consecutive days missed
+                return True
+
+        # Check for total missed days
+        start_date = completion_dates[0]
+        end_date = completion_dates[-1]
+        total_days = (end_date - start_date).days + 1
+        completed_days = len(completion_dates)
+        missed_days = total_days - completed_days
+
+        return missed_days >= 2
+
+    def delete(self, *args, **kwargs):
+        """
+        Override delete to handle special case of 30-day streak
+        """
+        # Check if we have a 30-day streak before deleting
+        has_thirty_day_streak = self.highest_streak >= 30
+
+        if has_thirty_day_streak:
+            # If there's a 30-day streak, keep the completions but mark them as inactive
+            self.completions.update(is_active=False)
+            super().delete(*args, **kwargs)
+        else:
+            # If no 30-day streak, delete everything
+            self.completions.all().delete()
+            super().delete(*args, **kwargs)
+
     def update_streak(self, completion_date):
         # Get all completions for this user challenge
-        completions = self.completions.all()
+        completions = self.completions.filter(is_active=True)
 
         # Extract unique dates from completions
         completion_dates = {
@@ -168,7 +224,11 @@ class UserChallenge(BaseModel):
         # Update total completions based on the number of unique completion dates
         self.total_completions = len(completion_dates)
 
-        self.save()
+        # Check for challenge failure conditions
+        if self.has_failed():
+            self.delete()
+        else:
+            self.save()
 
 
 class UserChallengeCompletion(BaseModel):
@@ -179,6 +239,7 @@ class UserChallengeCompletion(BaseModel):
         verbose_name=_("User challenge"),
     )
     completed_at = models.DateTimeField(_("Completed at"))
+    is_active = models.BooleanField(_("Is Active"), default=True)
 
     def save(self, *args, **kwargs):
         if not self.completed_at:
