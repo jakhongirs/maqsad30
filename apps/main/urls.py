@@ -9,6 +9,8 @@ from apps.main.views import (
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
+    TournamentCalendarAPIView,
+    TournamentChallengeCalendarAPIView,
     TournamentListAPIView,
     UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
@@ -28,6 +30,16 @@ urlpatterns = [
         "tournaments/<int:tournament_id>/user-tournament/",
         UserTournamentAPIView.as_view(),
         name="tournament-user-tournament",
+    ),
+    path(
+        "tournaments/<int:tournament_id>/calendar/",
+        TournamentCalendarAPIView.as_view(),
+        name="tournament-calendar",
+    ),
+    path(
+        "tournaments/<int:tournament_id>/challenges/<int:challenge_id>/calendar/",
+        TournamentChallengeCalendarAPIView.as_view(),
+        name="tournament-challenge-calendar",
     ),
     # Challenge URLs
     path("challenges/", ChallengeListAPIView.as_view(), name="challenge-list"),

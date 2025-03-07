@@ -29,6 +29,8 @@ from apps.main.serializers import (
     ChallengeCalendarSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
+    TournamentCalendarSerializer,
+    TournamentChallengeCalendarSerializer,
     TournamentChallengeListSerializer,
     TournamentDetailSerializer,
     TournamentListSerializer,
@@ -497,3 +499,85 @@ class ChallengeDetailAPIView(RetrieveAPIView):
                 to_attr="_prefetched_user_challenges",
             )
         )
+
+
+class TournamentCalendarAPIView(RetrieveAPIView):
+    """
+    API view to get tournament calendar data showing completed days and challenges
+    """
+
+    serializer_class = TournamentCalendarSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_url_kwarg = "tournament_id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Tournament.objects.none()
+
+        return Tournament.objects.prefetch_related(
+            "challenges",
+            Prefetch(
+                "user_tournaments",
+                queryset=UserTournament.objects.filter(user=self.request.user),
+                to_attr="_prefetched_user_tournaments",
+            ),
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            month = int(self.request.query_params.get("month", timezone.now().month))
+            year = int(self.request.query_params.get("year", timezone.now().year))
+            if not 1 <= month <= 12:
+                raise ValidationError("Month must be between 1 and 12")
+        except ValueError:
+            raise ValidationError("Invalid month or year format")
+
+        context["month"] = month
+        context["year"] = year
+        return context
+
+
+class TournamentChallengeCalendarAPIView(RetrieveAPIView):
+    """
+    API view to get tournament calendar data for a specific challenge
+    """
+
+    serializer_class = TournamentChallengeCalendarSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_url_kwarg = "tournament_id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Tournament.objects.none()
+
+        return Tournament.objects.prefetch_related(
+            "challenges",
+            Prefetch(
+                "user_tournaments",
+                queryset=UserTournament.objects.filter(user=self.request.user),
+                to_attr="_prefetched_user_tournaments",
+            ),
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            month = int(self.request.query_params.get("month", timezone.now().month))
+            year = int(self.request.query_params.get("year", timezone.now().year))
+            if not 1 <= month <= 12:
+                raise ValidationError("Month must be between 1 and 12")
+        except ValueError:
+            raise ValidationError("Invalid month or year format")
+
+        # Get the challenge
+        challenge_id = self.kwargs.get("challenge_id")
+        try:
+            challenge = Challenge.objects.get(id=challenge_id)
+        except Challenge.DoesNotExist:
+            raise ValidationError("Challenge not found")
+
+        context["month"] = month
+        context["year"] = year
+        context["challenge"] = challenge
+        return context

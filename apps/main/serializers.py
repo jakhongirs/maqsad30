@@ -450,3 +450,141 @@ class TournamentDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "challenges",
         )
+
+
+class TournamentCalendarSerializer(serializers.ModelSerializer):
+    calendar_data = serializers.SerializerMethodField()
+    calendar_icon = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tournament
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "calendar_icon",
+            "award_icon",
+            "start_date",
+            "finish_date",
+            "calendar_data",
+        )
+
+    def get_calendar_icon(self, obj):
+        request = self.context.get("request")
+        if obj.calendar_icon:
+            return request.build_absolute_uri(obj.calendar_icon.url)
+        return None
+
+    def get_calendar_data(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return []
+
+        month = self.context.get("month")
+        year = self.context.get("year")
+
+        # Get user tournament
+        user_tournament = obj.user_tournaments.filter(user=request.user).first()
+        if not user_tournament:
+            return []
+
+        # Get all daily records for the specified month
+        daily_records = user_tournament.daily_records.filter(
+            date__year=year, date__month=month
+        ).prefetch_related("completed_challenges")
+
+        calendar_data = []
+        for record in daily_records:
+            calendar_data.append(
+                {
+                    "date": record.date,
+                    "is_completed": record.is_completed,
+                    "completed_challenges": [
+                        {
+                            "id": challenge.id,
+                            "title": challenge.title,
+                            "icon": request.build_absolute_uri(challenge.icon.url)
+                            if challenge.icon
+                            else None,
+                            "calendar_icon": request.build_absolute_uri(
+                                challenge.calendar_icon.url
+                            )
+                            if challenge.calendar_icon
+                            else None,
+                        }
+                        for challenge in record.completed_challenges.all()
+                    ],
+                }
+            )
+
+        return calendar_data
+
+
+class TournamentChallengeCalendarSerializer(serializers.ModelSerializer):
+    calendar_data = serializers.SerializerMethodField()
+    calendar_icon = serializers.SerializerMethodField()
+    challenge = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tournament
+        fields = (
+            "id",
+            "title",
+            "icon",
+            "calendar_icon",
+            "award_icon",
+            "start_date",
+            "finish_date",
+            "challenge",
+            "calendar_data",
+        )
+
+    def get_calendar_icon(self, obj):
+        request = self.context.get("request")
+        if obj.calendar_icon:
+            return request.build_absolute_uri(obj.calendar_icon.url)
+        return None
+
+    def get_challenge(self, obj):
+        challenge = self.context.get("challenge")
+        request = self.context.get("request")
+        if not challenge:
+            return None
+
+        return {
+            "id": challenge.id,
+            "title": challenge.title,
+            "icon": request.build_absolute_uri(challenge.icon.url)
+            if challenge.icon
+            else None,
+            "calendar_icon": request.build_absolute_uri(challenge.calendar_icon.url)
+            if challenge.calendar_icon
+            else None,
+        }
+
+    def get_calendar_data(self, obj):
+        request = self.context.get("request")
+        challenge = self.context.get("challenge")
+        if not request or not request.user.is_authenticated or not challenge:
+            return []
+
+        month = self.context.get("month")
+        year = self.context.get("year")
+
+        # Get user tournament
+        user_tournament = obj.user_tournaments.filter(user=request.user).first()
+        if not user_tournament:
+            return []
+
+        # Get all daily records for the specified month
+        daily_records = user_tournament.daily_records.filter(
+            date__year=year, date__month=month
+        ).prefetch_related("completed_challenges")
+
+        calendar_data = []
+        for record in daily_records:
+            # Check if the specific challenge was completed on this day
+            if challenge in record.completed_challenges.all():
+                calendar_data.append({"date": record.date, "is_completed": True})
+
+        return calendar_data
