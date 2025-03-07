@@ -28,7 +28,7 @@ class UserChallengeAdmin(admin.ModelAdmin):
         "highest_streak",
         "total_completions",
         "last_completion_date",
-        "started_at"
+        "started_at",
     )
     list_filter = ("challenge", "last_completion_date")
     search_fields = ("user__username", "challenge__title")
@@ -96,9 +96,12 @@ class UserTournamentAdmin(admin.ModelAdmin):
 
 @admin.register(UserTournamentDay)
 class UserTournamentDayAdmin(admin.ModelAdmin):
-    list_display = ("user_tournament", "date", "is_completed")
+    list_display = ("user_tournament", "get_user", "date", "is_completed")
     list_filter = ("date", "is_completed")
     search_fields = (
         "user_tournament__user__username",
         "user_tournament__tournament__title",
     )
+
+    def get_user(self, obj):
+        return obj.user_tournament.user
