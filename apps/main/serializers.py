@@ -588,3 +588,32 @@ class TournamentChallengeCalendarSerializer(serializers.ModelSerializer):
                 calendar_data.append({"date": record.date, "is_completed": True})
 
         return calendar_data
+
+
+class TournamentLeaderboardSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    completed_days = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserTournament
+        fields = (
+            "user",
+            "completed_days",
+            "is_failed",
+        )
+
+    def get_user(self, obj):
+        request = self.context.get("request")
+        user = obj.user
+        return {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "telegram_username": user.telegram_username,
+            "telegram_photo": request.build_absolute_uri(user.telegram_photo.url)
+            if user.telegram_photo
+            else user.telegram_photo_url,
+        }
+
+    def get_completed_days(self, obj):
+        return obj.daily_records.filter(is_completed=True).count()

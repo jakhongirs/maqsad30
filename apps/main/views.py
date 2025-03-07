@@ -33,6 +33,7 @@ from apps.main.serializers import (
     TournamentChallengeCalendarSerializer,
     TournamentChallengeListSerializer,
     TournamentDetailSerializer,
+    TournamentLeaderboardSerializer,
     TournamentListSerializer,
     UserChallengeCompletionSerializer,
     UserChallengeCreateSerializer,
@@ -581,3 +582,28 @@ class TournamentChallengeCalendarAPIView(RetrieveAPIView):
         context["year"] = year
         context["challenge"] = challenge
         return context
+
+
+class TournamentLeaderboardAPIView(ListAPIView):
+    """
+    API view to get tournament leaderboard data showing user, completed days, and failure status
+    """
+
+    serializer_class = TournamentLeaderboardSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        tournament_id = self.kwargs.get("tournament_id")
+        try:
+            tournament = Tournament.objects.get(id=tournament_id)
+        except Tournament.DoesNotExist:
+            raise ValidationError("Tournament not found")
+
+        # Get all user tournaments for this tournament
+        return (
+            UserTournament.objects.filter(tournament=tournament)
+            .select_related("user", "tournament")
+            .prefetch_related("daily_records")
+            .order_by("-daily_records__is_completed", "is_failed")
+            .distinct()
+        )
