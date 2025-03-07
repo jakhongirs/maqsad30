@@ -265,6 +265,14 @@ class UserTournament(BaseModel):
         related_name="user_tournaments",
         verbose_name=_("Tournament"),
     )
+    user_challenge = models.ForeignKey(
+        UserChallenge,
+        on_delete=models.CASCADE,
+        related_name="user_tournaments",
+        verbose_name=_("User challenge"),
+        null=True,
+        blank=True,
+    )
     consecutive_failures = models.PositiveIntegerField(
         _("Consecutive failures"), default=0
     )

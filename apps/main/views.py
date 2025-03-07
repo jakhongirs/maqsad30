@@ -104,8 +104,10 @@ class UserChallengeCompletionAPIView(CreateAPIView):
         )
 
         for tournament in active_tournaments:
-            user_tournament, _ = UserTournament.objects.get_or_create(
-                user=self.request.user, tournament=tournament
+            user_tournament, created = UserTournament.objects.get_or_create(
+                user=self.request.user,
+                tournament=tournament,
+                defaults={"user_challenge": user_challenge},
             )
 
             if not user_tournament.is_failed:
@@ -385,7 +387,9 @@ class UserChallengeCreateAPIView(CreateAPIView):
 
         for tournament in active_tournaments:
             UserTournament.objects.get_or_create(
-                user=request.user, tournament=tournament
+                user=request.user,
+                tournament=tournament,
+                defaults={"user_challenge": user_challenge},
             )
 
         response_serializer = UserChallengeListSerializer(user_challenge)
