@@ -376,6 +376,18 @@ class UserChallengeCreateAPIView(CreateAPIView):
 
         # Create new challenge
         user_challenge = serializer.save()
+
+        # Handle tournament creation if challenge is part of active tournaments
+        now = timezone.now()
+        active_tournaments = Tournament.objects.filter(
+            challenges=user_challenge.challenge, is_active=True, finish_date__gte=now
+        )
+
+        for tournament in active_tournaments:
+            UserTournament.objects.get_or_create(
+                user=request.user, tournament=tournament
+            )
+
         response_serializer = UserChallengeListSerializer(user_challenge)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
