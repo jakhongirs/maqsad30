@@ -35,15 +35,17 @@ class User(AbstractUser, BaseModel):
     username = models.CharField(
         _("Username"), max_length=150, unique=True, null=True, blank=True
     )
-    first_name = models.CharField(_("First name"), max_length=32, null=True, blank=True)
-    last_name = models.CharField(_("Last name"), max_length=32, null=True, blank=True)
+    first_name = models.CharField(
+        _("First name"), max_length=255, null=True, blank=True
+    )
+    last_name = models.CharField(_("Last name"), max_length=255, null=True, blank=True)
     is_deleted = models.BooleanField(_("Is deleted"), default=False)
     email = models.EmailField(_("Email"), unique=True, null=True, blank=True)
     telegram_id = models.CharField(
-        _("Telegram ID"), max_length=100, unique=True, null=True, blank=True
+        _("Telegram ID"), max_length=255, unique=True, null=True, blank=True
     )
     telegram_username = models.CharField(
-        _("Telegram Username"), max_length=100, null=True, blank=True
+        _("Telegram Username"), max_length=255, null=True, blank=True
     )
     telegram_photo_url = models.URLField(
         _("Telegram Photo URL"), max_length=255, null=True, blank=True
@@ -52,7 +54,7 @@ class User(AbstractUser, BaseModel):
         _("Telegram Photo"), upload_to="telegram_photos/", null=True, blank=True
     )
     language = models.CharField(
-        _("Language"), max_length=5, choices=LANGUAGE_CHOICES, default="uz"
+        _("Language"), max_length=100, choices=LANGUAGE_CHOICES, default="uz"
     )
     timezone = models.ForeignKey(
         Timezone,
