@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -607,7 +607,12 @@ class TournamentLeaderboardAPIView(ListAPIView):
             UserTournament.objects.filter(tournament=tournament)
             .select_related("user", "tournament")
             .prefetch_related("daily_records")
-            .order_by("-daily_records__is_completed", "is_failed")
+            .annotate(
+                completed_days=Count(
+                    "daily_records", filter=Q(daily_records__is_completed=True)
+                )
+            )
+            .order_by("-completed_days", "is_failed")
             .distinct()
         )
 
