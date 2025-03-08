@@ -622,8 +622,8 @@ class BackfillUserChallengeCompletionAPIView(APIView):
 
     def post(self, request):
         # Set the date range
-        start_date = datetime(2024, 3, 1, tzinfo=timezone.get_current_timezone())
-        end_date = datetime(2024, 3, 6, tzinfo=timezone.get_current_timezone())
+        start_date = datetime(2025, 3, 1, tzinfo=timezone.get_current_timezone())
+        end_date = datetime(2025, 3, 6, tzinfo=timezone.get_current_timezone())
         current_date = start_date
 
         # Get all challenges and non-staff users
@@ -678,6 +678,53 @@ class BackfillUserChallengeCompletionAPIView(APIView):
                 "message": f"Successfully backfilled data from {start_date.date()} to {end_date.date()}",
                 "created_user_challenges": created_user_challenges,
                 "created_completions": created_completions,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class DeleteIncorrectCompletionsAPIView(APIView):
+    """
+    API view to delete UserChallengeCompletion data from March 1st to March 6th 2024
+    that were incorrectly created with wrong year.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Set the date range for incorrect data
+        start_date = datetime(2024, 3, 1, tzinfo=timezone.get_current_timezone())
+        end_date = datetime(2024, 3, 6, tzinfo=timezone.get_current_timezone())
+
+        # Get completions in the incorrect date range
+        incorrect_completions = UserChallengeCompletion.objects.filter(
+            completed_at__date__gte=start_date.date(),
+            completed_at__date__lte=end_date.date(),
+            user_challenge__user__is_staff=False,  # Only for non-staff users
+        )
+
+        # Count completions before deletion
+        completions_count = incorrect_completions.count()
+
+        # Get affected user challenges
+        affected_user_challenges = UserChallenge.objects.filter(
+            completions__in=incorrect_completions
+        ).distinct()
+        user_challenges_count = affected_user_challenges.count()
+
+        # Delete the completions
+        incorrect_completions.delete()
+
+        # Update streaks for affected user challenges
+        for user_challenge in affected_user_challenges:
+            user_challenge.update_streak(timezone.now().date())
+
+        return Response(
+            {
+                "status": "success",
+                "message": f"Successfully deleted incorrect completions from {start_date.date()} to {end_date.date()}",
+                "deleted_completions": completions_count,
+                "affected_user_challenges": user_challenges_count,
             },
             status=status.HTTP_200_OK,
         )

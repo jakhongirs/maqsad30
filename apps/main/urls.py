@@ -10,6 +10,7 @@ from apps.main.views import (
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
+    DeleteIncorrectCompletionsAPIView,
     TournamentCalendarAPIView,
     TournamentChallengeCalendarAPIView,
     TournamentLeaderboardAPIView,
@@ -116,10 +117,15 @@ urlpatterns = [
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
     ),
-    # Backfill URL
+    # Backfill URLs
     path(
         "backfill-challenge-completions/",
         BackfillUserChallengeCompletionAPIView.as_view(),
         name="backfill-challenge-completions",
+    ),
+    path(
+        "delete-incorrect-completions/",
+        DeleteIncorrectCompletionsAPIView.as_view(),
+        name="delete-incorrect-completions",
     ),
 ]
