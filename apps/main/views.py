@@ -728,3 +728,92 @@ class DeleteIncorrectCompletionsAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class BackfillTournamentDataAPIView(APIView):
+    """
+    API view to create UserTournament and UserTournamentDay records based on existing
+    UserChallengeCompletion data from March 1st to March 6th 2025.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Set the date range
+        start_date = datetime(2025, 3, 1, tzinfo=timezone.get_current_timezone())
+        end_date = datetime(2025, 3, 7, tzinfo=timezone.get_current_timezone())
+        current_date = start_date
+
+        # Get all active tournaments for that period
+        tournaments = Tournament.objects.filter(is_active=True)
+
+        created_user_tournaments = 0
+        created_tournament_days = 0
+        updated_tournament_days = 0
+
+        # Process each tournament
+        for tournament in tournaments:
+            # Get all challenge completions for tournament challenges in the date range
+            challenge_completions = UserChallengeCompletion.objects.filter(
+                user_challenge__challenge__in=tournament.challenges.all(),
+                completed_at__date__gte=start_date.date(),
+                completed_at__date__lte=end_date.date(),
+                user_challenge__user__is_staff=False,  # Only for non-staff users
+            ).select_related("user_challenge__user", "user_challenge__challenge")
+
+            # Group completions by user and date
+            user_date_completions = {}
+            for completion in challenge_completions:
+                user = completion.user_challenge.user
+                date = completion.completed_at.date()
+                challenge = completion.user_challenge.challenge
+
+                if user not in user_date_completions:
+                    user_date_completions[user] = {}
+                if date not in user_date_completions[user]:
+                    user_date_completions[user][date] = set()
+                user_date_completions[user][date].add(challenge)
+
+            # Create UserTournament and UserTournamentDay records
+            for user, date_completions in user_date_completions.items():
+                # Create or get UserTournament
+                user_tournament, ut_created = UserTournament.objects.get_or_create(
+                    user=user,
+                    tournament=tournament,
+                    defaults={"started_at": start_date, "is_failed": False},
+                )
+                if ut_created:
+                    created_user_tournaments += 1
+
+                # Create UserTournamentDay records for each date
+                for date, completed_challenges in date_completions.items():
+                    (
+                        tournament_day,
+                        td_created,
+                    ) = UserTournamentDay.objects.get_or_create(
+                        user_tournament=user_tournament,
+                        date=date,
+                    )
+                    if td_created:
+                        created_tournament_days += 1
+
+                    # Add completed challenges
+                    tournament_day.completed_challenges.add(*completed_challenges)
+
+                    # Update completion status
+                    tournament_day.update_completion_status()
+                    updated_tournament_days += 1
+
+                # Update tournament failure status
+                user_tournament.update_failures(end_date.date())
+
+        return Response(
+            {
+                "status": "success",
+                "message": f"Successfully created tournament data from {start_date.date()} to {end_date.date()}",
+                "created_user_tournaments": created_user_tournaments,
+                "created_tournament_days": created_tournament_days,
+                "updated_tournament_days": updated_tournament_days,
+            },
+            status=status.HTTP_200_OK,
+        )

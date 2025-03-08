@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.main.views import (
     AllChallengesCalendarAPIView,
+    BackfillTournamentDataAPIView,
     BackfillUserChallengeCompletionAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
@@ -127,5 +128,10 @@ urlpatterns = [
         "delete-incorrect-completions/",
         DeleteIncorrectCompletionsAPIView.as_view(),
         name="delete-incorrect-completions",
+    ),
+    path(
+        "backfill-tournament-data/",
+        BackfillTournamentDataAPIView.as_view(),
+        name="backfill-tournament-data",
     ),
 ]
