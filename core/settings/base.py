@@ -40,6 +40,7 @@ CUSTOM_APPS = [
     "apps.onboarding",
     "apps.main",
     "apps.telegram_bot",
+    "apps.notification",
 ]
 
 THIRD_PARTY_APPS = [
@@ -231,6 +232,31 @@ CELERY_BEAT_SCHEDULE = {
     "process-tournament-awards": {
         "task": "apps.main.tasks.process_tournament_awards",
         "schedule": crontab(minute=0, hour=15),
+    },
+    # Challenge notifications at 19:00
+    "send-challenge-notifications-19": {
+        "task": "apps.notification.tasks.send_challenge_notifications",
+        "schedule": crontab(minute=0, hour=19),
+    },
+    # Challenge notifications at 20:00
+    "send-challenge-notifications-20": {
+        "task": "apps.notification.tasks.send_challenge_notifications",
+        "schedule": crontab(minute=0, hour=20),
+    },
+    # Tournament daily notifications
+    "send-tournament-daily-notifications": {
+        "task": "apps.notification.tasks.send_tournament_daily_notifications",
+        "schedule": crontab(minute=0, hour=19),  # Run at 19:00 every day
+    },
+    # Tournament missed notifications
+    "send-tournament-missed-notifications": {
+        "task": "apps.notification.tasks.send_tournament_missed_notifications",
+        "schedule": crontab(minute=0, hour=1),  # Run at midnight every day
+    },
+    # Tournament failed notifications
+    "send-tournament-failed-notifications": {
+        "task": "apps.notification.tasks.send_tournament_failed_notifications",
+        "schedule": crontab(minute=5, hour=1),  # Run at 00:05 every day
     },
 }
 
