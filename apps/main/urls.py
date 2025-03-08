@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.main.views import (
     AllChallengesCalendarAPIView,
+    BackfillUserChallengeCompletionAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
     ChallengeAwardListView,
@@ -114,5 +115,11 @@ urlpatterns = [
         "admin/update-streaks/",
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
+    ),
+    # Backfill URL
+    path(
+        "backfill-challenge-completions/",
+        BackfillUserChallengeCompletionAPIView.as_view(),
+        name="backfill-challenge-completions",
     ),
 ]

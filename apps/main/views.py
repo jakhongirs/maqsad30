@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
@@ -41,6 +43,7 @@ from apps.main.serializers import (
     UserChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
+from apps.users.models import User
 from apps.users.permissions import IsTelegramUser
 
 
@@ -606,4 +609,75 @@ class TournamentLeaderboardAPIView(ListAPIView):
             .prefetch_related("daily_records")
             .order_by("-daily_records__is_completed", "is_failed")
             .distinct()
+        )
+
+
+class BackfillUserChallengeCompletionAPIView(APIView):
+    """
+    API view to backfill UserChallengeCompletion data from March 1st to March 6th
+    for all challenges and users.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        # Set the date range
+        start_date = datetime(2024, 3, 1, tzinfo=timezone.get_current_timezone())
+        end_date = datetime(2024, 3, 6, tzinfo=timezone.get_current_timezone())
+        current_date = start_date
+
+        # Get all challenges and non-staff users
+        challenges = Challenge.objects.all()
+        users = User.objects.filter(is_staff=False)
+
+        created_completions = 0
+        created_user_challenges = 0
+
+        while current_date <= end_date:
+            # For each challenge and user
+            for challenge in challenges:
+                for user in users:
+                    # Get or create UserChallenge
+                    user_challenge, uc_created = UserChallenge.objects.get_or_create(
+                        user=user,
+                        challenge=challenge,
+                        defaults={"started_at": start_date},
+                    )
+
+                    if uc_created:
+                        created_user_challenges += 1
+
+                    # Check if completion exists for this date
+                    completion_exists = UserChallengeCompletion.objects.filter(
+                        user_challenge=user_challenge,
+                        completed_at__date=current_date.date(),
+                    ).exists()
+
+                    if not completion_exists:
+                        # Create completion at challenge's start_time for the current date
+                        completion_time = timezone.datetime.combine(
+                            current_date.date(),
+                            challenge.start_time,
+                            tzinfo=timezone.get_current_timezone(),
+                        )
+
+                        UserChallengeCompletion.objects.create(
+                            user_challenge=user_challenge, completed_at=completion_time
+                        )
+                        created_completions += 1
+
+            current_date += timedelta(days=1)
+
+        # Update streaks for all user challenges
+        for user_challenge in UserChallenge.objects.filter(user__is_staff=False):
+            user_challenge.update_streak(end_date.date())
+
+        return Response(
+            {
+                "status": "success",
+                "message": f"Successfully backfilled data from {start_date.date()} to {end_date.date()}",
+                "created_user_challenges": created_user_challenges,
+                "created_completions": created_completions,
+            },
+            status=status.HTTP_200_OK,
         )
