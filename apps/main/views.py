@@ -106,8 +106,8 @@ class UserChallengeCompletionAPIView(CreateAPIView):
 
         # Handle tournament progress if challenge is part of active tournaments
         active_tournaments = Tournament.objects.filter(
-            challenges=challenge, is_active=True, finish_date__gte=now
-        )
+            challenges__in=[challenge], is_active=True, finish_date__gte=now
+        ).distinct()
 
         for tournament in active_tournaments:
             user_tournament, _ = UserTournament.objects.get_or_create(
