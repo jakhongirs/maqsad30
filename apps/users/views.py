@@ -37,12 +37,13 @@ class TelegramUserRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Set default timezone to Asia/Tashkent
-        timezone, created = Timezone.objects.get_or_create(
-            name="Asia/Tashkent", defaults={"offset": "+05:00"}
-        )
-        user.timezone = timezone
-        user.save(update_fields=["timezone"])
+        # Set default timezone to Asia/Tashkent only for new users
+        if not existing_user:
+            timezone, created = Timezone.objects.get_or_create(
+                name="Asia/Tashkent", defaults={"offset": "+05:00"}
+            )
+            user.timezone = timezone
+            user.save(update_fields=["timezone"])
 
         status_code = status.HTTP_200_OK if existing_user else status.HTTP_201_CREATED
         return Response(
