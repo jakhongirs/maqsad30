@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
@@ -46,6 +47,7 @@ from apps.main.serializers import (
     UserSuperChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
+from apps.users.models import User
 from apps.users.permissions import IsTelegramUser
 
 
@@ -584,16 +586,228 @@ class SuperChallengeLeaderboardAPIView(ListAPIView):
 
     def get_queryset(self):
         super_challenge_id = self.kwargs["id"]
-        try:
-            super_challenge = SuperChallenge.objects.get(id=super_challenge_id)
-        except SuperChallenge.DoesNotExist:
-            raise ValidationError("Super Challenge not found")
+        return UserSuperChallenge.objects.filter(
+            super_challenge_id=super_challenge_id, is_active=True
+        ).order_by("-highest_streak", "-total_completions")[:10]
 
-        # Query UserSuperChallenge directly to get unique entries
-        return (
-            UserSuperChallenge.objects.filter(
-                super_challenge_id=super_challenge_id, highest_streak__gt=0
-            )
-            .select_related("user")
-            .order_by("-highest_streak")
+
+class GenerateSuperChallengeDataAPIView(APIView):
+    """
+    API view to generate UserSuperChallenge and UserSuperChallengeCompletion data
+    based on existing UserChallenge and UserChallengeCompletion data.
+
+    This is used to populate super challenge data after the feature has been implemented.
+    """
+
+    permission_classes = [AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        # Get all super challenges
+        super_challenges = SuperChallenge.objects.all()
+
+        # Track statistics for response
+        stats = {
+            "super_challenges_processed": 0,
+            "user_super_challenges_created": 0,
+            "user_super_challenge_completions_created": 0,
+            "users_processed": 0,
+            "errors": [],
+        }
+
+        # Process each super challenge
+        for super_challenge in super_challenges:
+            stats["super_challenges_processed"] += 1
+
+            # Get all challenges in this super challenge
+            challenge_ids = super_challenge.challenges.values_list("id", flat=True)
+
+            # Find all users who have participated in at least one of these challenges
+            users_with_challenges = User.objects.filter(
+                user_challenges__challenge_id__in=challenge_ids,
+                user_challenges__is_active=True,
+            ).distinct()
+
+            stats["users_processed"] += users_with_challenges.count()
+
+            # For each user, create a UserSuperChallenge if they don't have one
+            for user in users_with_challenges:
+                try:
+                    # Get all user challenges for this user related to the super challenge
+                    user_challenges = UserChallenge.objects.filter(
+                        user=user, challenge_id__in=challenge_ids, is_active=True
+                    )
+
+                    # Skip if no active challenges
+                    if not user_challenges.exists():
+                        continue
+
+                    # Find the earliest completion date across all challenges
+                    earliest_completion = (
+                        UserChallengeCompletion.objects.filter(
+                            user_challenge__in=user_challenges, is_active=True
+                        )
+                        .order_by("completed_at")
+                        .first()
+                    )
+
+                    # If no completions exist, use the earliest started_at from user challenges
+                    if earliest_completion:
+                        earliest_started_at = earliest_completion.completed_at
+                    else:
+                        earliest_started_at = (
+                            user_challenges.order_by("started_at").first().started_at
+                        )
+
+                    # Check if user already has a UserSuperChallenge for this super challenge
+                    (
+                        user_super_challenge,
+                        created,
+                    ) = UserSuperChallenge.objects.get_or_create(
+                        user=user,
+                        super_challenge=super_challenge,
+                        defaults={
+                            "is_active": True,
+                            "is_failed": False,
+                            # started_at will be auto-set due to auto_now_add=True
+                        },
+                    )
+
+                    if created:
+                        stats["user_super_challenges_created"] += 1
+                        # For new records, we need to update the started_at field directly in the database
+                        # to bypass the auto_now_add=True behavior
+                        UserSuperChallenge.objects.filter(
+                            id=user_super_challenge.id
+                        ).update(started_at=earliest_started_at)
+                        # Refresh from database to get the updated started_at value
+                        user_super_challenge.refresh_from_db()
+                    else:
+                        # For existing records, update the started_at field directly in the database
+                        UserSuperChallenge.objects.filter(
+                            id=user_super_challenge.id
+                        ).update(started_at=earliest_started_at)
+                        # Refresh from database to get the updated started_at value
+                        user_super_challenge.refresh_from_db()
+
+                    # Find dates where all challenges were completed
+                    self.process_completions(
+                        user, user_super_challenge, challenge_ids, stats
+                    )
+
+                    # Update streak information
+                    if user_super_challenge.completions.exists():
+                        latest_completion = user_super_challenge.completions.latest(
+                            "completed_at"
+                        )
+                        user_super_challenge.update_streak(
+                            latest_completion.completed_at.date()
+                        )
+
+                        # Check if eligible for award
+                        user_super_challenge.check_and_award_if_eligible()
+
+                except Exception as e:
+                    stats["errors"].append(
+                        f"Error processing user {user.id} for super challenge {super_challenge.id}: {str(e)}"
+                    )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Super challenge data generation completed",
+                "statistics": stats,
+            }
         )
+
+    def process_completions(self, user, user_super_challenge, challenge_ids, stats):
+        """
+        Process completions for a user's super challenge.
+        Creates UserSuperChallengeCompletion records for dates where all challenges were completed.
+        """
+        # Get all user challenges for this user related to the super challenge
+        user_challenges = UserChallenge.objects.filter(
+            user=user, challenge_id__in=challenge_ids, is_active=True
+        )
+
+        # Get all completion dates for each challenge
+        challenge_completion_dates = {}
+        challenge_completion_times = {}  # Store completion times for each date
+
+        for user_challenge in user_challenges:
+            # Get all completions for this challenge
+            completions = UserChallengeCompletion.objects.filter(
+                user_challenge=user_challenge, is_active=True
+            )
+
+            # Convert to dates and store in dictionary
+            dates_set = set()
+            times_dict = {}  # Store the completion time for each date
+
+            for completion in completions:
+                completion_date = completion.completed_at.date()
+                dates_set.add(completion_date)
+
+                # Store the latest completion time for each date
+                if (
+                    completion_date not in times_dict
+                    or completion.completed_at > times_dict[completion_date]
+                ):
+                    times_dict[completion_date] = completion.completed_at
+
+            challenge_completion_dates[user_challenge.challenge_id] = dates_set
+            challenge_completion_times[user_challenge.challenge_id] = times_dict
+
+        # If we don't have completions for all challenges, we can't proceed
+        if len(challenge_completion_dates) != len(challenge_ids):
+            return
+
+        # Find dates where all challenges were completed
+        # Start with dates from the first challenge
+        if not challenge_completion_dates:
+            return
+
+        first_challenge_id = list(challenge_completion_dates.keys())[0]
+        common_dates = challenge_completion_dates[first_challenge_id]
+
+        # Intersect with dates from other challenges
+        for challenge_id, dates in challenge_completion_dates.items():
+            if challenge_id != first_challenge_id:
+                common_dates = common_dates.intersection(dates)
+
+        # Create UserSuperChallengeCompletion for each common date
+        for completion_date in common_dates:
+            # Check if completion already exists for this date
+            existing_completion = UserSuperChallengeCompletion.objects.filter(
+                user_super_challenge=user_super_challenge,
+                completed_at__date=completion_date,
+            ).first()
+
+            if not existing_completion:
+                # Find the latest completion time among all challenges for this date
+                latest_completion_time = None
+
+                for challenge_id in challenge_ids:
+                    if (
+                        challenge_id in challenge_completion_times
+                        and completion_date in challenge_completion_times[challenge_id]
+                    ):
+                        challenge_time = challenge_completion_times[challenge_id][
+                            completion_date
+                        ]
+                        if (
+                            latest_completion_time is None
+                            or challenge_time > latest_completion_time
+                        ):
+                            latest_completion_time = challenge_time
+
+                # Use the latest completion time as the super challenge completion time
+                # This represents when the user completed all challenges for the day
+                if latest_completion_time:
+                    UserSuperChallengeCompletion.objects.create(
+                        user_super_challenge=user_super_challenge,
+                        completed_at=latest_completion_time,
+                        is_active=True,
+                    )
+
+                    stats["user_super_challenge_completions_created"] += 1
