@@ -30,6 +30,7 @@ from apps.main.serializers import (
     Challenge30DaysPlusStreakSerializer,
     ChallengeAwardSerializer,
     ChallengeCalendarSerializer,
+    ChallengeDetailSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
     SuperChallengeAwardSerializer,
@@ -62,6 +63,20 @@ class ChallengeListAPIView(ListAPIView):
                 to_attr="_prefetched_user_challenges",
             )
         )
+
+
+class ChallengeDetailAPIView(RetrieveAPIView):
+    serializer_class = ChallengeDetailSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return Challenge.objects.all()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 
 class UserChallengeCompletionAPIView(CreateAPIView):
@@ -426,7 +441,7 @@ class SuperChallengeDetailAPIView(RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return SuperChallenge.objects.all()
+        return SuperChallenge.objects.all().prefetch_related("challenges")
 
 
 class UserSuperChallengeListAPIView(ListAPIView):

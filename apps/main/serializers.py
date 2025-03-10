@@ -30,6 +30,85 @@ class ChallengeListSerializer(serializers.ModelSerializer):
         )
 
 
+class ChallengeWithCompletionStatusSerializer(ChallengeListSerializer):
+    is_completed_today = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Challenge
+        fields = ChallengeListSerializer.Meta.fields + ("is_completed_today",)
+
+    def get_is_completed_today(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        today = timezone.now().date()
+
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        if not user_challenge:
+            return False
+
+        # Check if this challenge was completed today
+        return UserChallengeCompletion.objects.filter(
+            user_challenge=user_challenge,
+            completed_at__date=today,
+            is_active=True,
+        ).exists()
+
+
+class ChallengeDetailSerializer(ChallengeListSerializer):
+    is_completed_today = serializers.SerializerMethodField()
+    total_completions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Challenge
+        fields = ChallengeListSerializer.Meta.fields + (
+            "is_completed_today",
+            "total_completions",
+        )
+
+    def get_is_completed_today(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        today = timezone.now().date()
+
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        if not user_challenge:
+            return False
+
+        # Check if this challenge was completed today
+        return UserChallengeCompletion.objects.filter(
+            user_challenge=user_challenge,
+            completed_at__date=today,
+            is_active=True,
+        ).exists()
+
+    def get_total_completions(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        if not user_challenge:
+            return 0
+
+        return user_challenge.total_completions
+
+
 class UserChallengeCompletionSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserChallengeCompletion
@@ -320,7 +399,7 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
 
 
 class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
-    challenges = ChallengeListSerializer(many=True, read_only=True)
+    challenges = ChallengeWithCompletionStatusSerializer(many=True, read_only=True)
 
     class Meta:
         model = SuperChallenge
