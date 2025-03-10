@@ -56,15 +56,6 @@ class ChallengeAwardAdmin(admin.ModelAdmin):
 
 @admin.register(UserAward)
 class UserAwardAdmin(admin.ModelAdmin):
-    list_display = ("user", "get_award_name", "created_at")
+    list_display = ("user", "challenge_award", "created_at")
     list_filter = ("created_at",)
-    search_fields = (
-        "user__username",
-        "challenge_award__challenge__title",
-        "tournament_award__tournament__title",
-    )
-
-    def get_award_name(self, obj):
-        if obj.challenge_award:
-            return f"{obj.challenge_award.challenge.title} Award"
-        return f"{obj.tournament_award.tournament.title} Award"
+    search_fields = ("user__username", "challenge_award__challenge__title")
