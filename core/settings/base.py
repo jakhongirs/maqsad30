@@ -222,7 +222,7 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BEAT_SCHEDULE = {
     "update-user-challenge-streaks": {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
-        "schedule": crontab(hour=0, minute=0),
+        "schedule": crontab(hour=0, minute=5),
     }
 }
 

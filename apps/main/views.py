@@ -588,7 +588,7 @@ class SuperChallengeLeaderboardAPIView(ListAPIView):
         super_challenge_id = self.kwargs["id"]
         return UserSuperChallenge.objects.filter(
             super_challenge_id=super_challenge_id, is_active=True
-        ).order_by("-highest_streak", "-total_completions")[:10]
+        ).order_by("-highest_streak", "-total_completions")
 
 
 class GenerateSuperChallengeDataAPIView(APIView):
