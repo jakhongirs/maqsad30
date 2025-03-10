@@ -400,6 +400,7 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
 
 class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
     challenges = ChallengeWithCompletionStatusSerializer(many=True, read_only=True)
+    current_streak = serializers.SerializerMethodField()
 
     class Meta:
         model = SuperChallenge
@@ -413,7 +414,19 @@ class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
             "challenges",
             "challenges_count",
             "created_at",
+            "current_streak",
         )
+
+    def get_current_streak(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        user_super_challenge = UserSuperChallenge.objects.filter(
+            user=request.user, super_challenge=obj
+        ).first()
+
+        return user_super_challenge.current_streak if user_super_challenge else 0
 
 
 class UserSuperChallengeListSerializer(serializers.ModelSerializer):
