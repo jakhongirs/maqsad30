@@ -299,21 +299,18 @@ class UserChallengeCreateAPIView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Check if challenge exists
-        challenge_id = serializer.validated_data["challenge"].id
-        existing_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge_id=challenge_id
-        ).first()
-
-        if existing_challenge:
-            # Return existing challenge
-            response_serializer = UserChallengeListSerializer(existing_challenge)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-
-        # Create new challenge
+        # Let the serializer handle the creation or reactivation
         user_challenge = serializer.save()
+
+        # Return appropriate response
         response_serializer = UserChallengeListSerializer(user_challenge)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        # If it's a new challenge, return 201, otherwise 200
+        status_code = status.HTTP_201_CREATED
+        if hasattr(user_challenge, "_reactivated") and user_challenge._reactivated:
+            status_code = status.HTTP_200_OK
+
+        return Response(response_serializer.data, status=status_code)
 
 
 class UserChallengeListAPIView(ListAPIView):
@@ -337,8 +334,11 @@ class UserChallengeDeleteAPIView(DestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        instance.delete()  # This will use our custom delete() method that handles the 30-day streak logic
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        instance.delete()  # This will use our custom delete() method that deactivates instead of deleting
+        return Response(
+            {"status": "success", "message": "Challenge deactivated successfully"},
+            status=status.HTTP_200_OK,
+        )
 
 
 class UserChallengeDetailAPIView(RetrieveAPIView):

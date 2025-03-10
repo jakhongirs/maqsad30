@@ -225,13 +225,20 @@ class UserChallengeCreateSerializer(serializers.ModelSerializer):
             # If it exists but is inactive, reactivate it
             if not user_challenge.is_active:
                 user_challenge.reactivate()
-            # If it's already active, just return it
+                # Set a flag to indicate this was reactivated
+                user_challenge._reactivated = True
+            else:
+                # If it's already active, just mark it as reactivated for status code purposes
+                user_challenge._reactivated = True
+            # Return the challenge
             return user_challenge
         else:
             # Create a new user challenge
             user_challenge = UserChallenge.objects.create(
                 user=user, challenge=challenge
             )
+            # Set flag to indicate this is a new challenge
+            user_challenge._reactivated = False
 
         return user_challenge
 
