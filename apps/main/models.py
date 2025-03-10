@@ -447,6 +447,84 @@ class UserSuperChallenge(BaseModel):
 
         return False
 
+    def get_failure_reason(self):
+        """
+        Returns the reason why the super challenge failed, including the specific missed days.
+        Returns None if the challenge hasn't failed.
+        """
+        if not self.is_failed:
+            return None
+
+        today = timezone.now().date()
+
+        # Determine the start date for checking
+        challenge_start_date = self.super_challenge.start_date
+        user_start_date = self.started_at.date()
+        effective_start_date = max(challenge_start_date, user_start_date)
+
+        # End date is either yesterday or the super challenge end date, whichever is earlier
+        yesterday = today - timezone.timedelta(days=1)
+        end_date = min(yesterday, self.super_challenge.end_date)
+
+        # Get all completions for this user super challenge
+        completions = self.completions.filter(
+            completed_at__date__gte=effective_start_date,
+            completed_at__date__lte=end_date,
+            is_active=True,
+        ).order_by("completed_at__date")
+
+        # Extract unique dates from completions
+        completion_dates = {
+            completion.completed_at.date() for completion in completions
+        }
+
+        # Create a set of all dates from effective_start_date to end_date
+        all_dates = set()
+        current_date = effective_start_date
+        while current_date <= end_date:
+            all_dates.add(current_date)
+            current_date += timezone.timedelta(days=1)
+
+        # Calculate missed dates
+        missed_dates = all_dates - completion_dates
+
+        # If there are no missed dates (shouldn't happen for failed challenges)
+        if not missed_dates:
+            return {"failure_type": "unknown"}
+
+        # Convert to sorted list
+        missed_dates_list = sorted(list(missed_dates))
+
+        # Check for two consecutive missed days
+        consecutive_missed_days = []
+        for i in range(len(missed_dates_list) - 1):
+            if (missed_dates_list[i + 1] - missed_dates_list[i]).days == 1:
+                consecutive_missed_days = [
+                    missed_dates_list[i],
+                    missed_dates_list[i + 1],
+                ]
+                break
+
+        # Format the dates as strings
+        missed_dates_str = [date.strftime("%Y-%m-%d") for date in missed_dates_list]
+        consecutive_missed_days_str = [
+            date.strftime("%Y-%m-%d") for date in consecutive_missed_days
+        ]
+
+        # Determine the reason
+        reason = {}
+        if consecutive_missed_days:
+            reason["failure_type"] = "consecutive_days_missed"
+            reason["consecutive_missed_days"] = consecutive_missed_days_str
+        elif len(missed_dates) >= 2:
+            reason["failure_type"] = "multiple_days_missed"
+        else:
+            reason["failure_type"] = "unknown"
+
+        reason["missed_dates"] = missed_dates_str
+
+        return reason
+
     def reset_stats(self):
         """
         Reset the super challenge stats but keep completion history

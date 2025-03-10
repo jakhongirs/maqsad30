@@ -382,6 +382,7 @@ class UserChallengeDetailSerializer(UserChallengeListSerializer):
 class SuperChallengeListSerializer(serializers.ModelSerializer):
     challenges_count = serializers.SerializerMethodField()
     is_failed = serializers.SerializerMethodField()
+    is_failed_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = SuperChallenge
@@ -394,6 +395,7 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
             "end_date",
             "challenges_count",
             "is_failed",
+            "is_failed_reason",
             "created_at",
         )
 
@@ -411,6 +413,32 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
 
         return user_super_challenge.is_failed if user_super_challenge else False
 
+    def get_is_failed_reason(self, obj):
+        """
+        Returns the reason why the super challenge failed, including the specific missed days.
+
+        The returned value is a dictionary with the following structure:
+        {
+            "failure_type": One of "consecutive_days_missed", "multiple_days_missed", or "unknown",
+            "missed_dates": List of all missed dates in YYYY-MM-DD format,
+            "consecutive_missed_days": List of consecutive missed days (only present if failure_type is "consecutive_days_missed")
+        }
+
+        Returns None if the challenge hasn't failed.
+        """
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+
+        user_super_challenge = UserSuperChallenge.objects.filter(
+            user=request.user, super_challenge=obj, is_active=True
+        ).first()
+
+        if not user_super_challenge or not user_super_challenge.is_failed:
+            return None
+
+        return user_super_challenge.get_failure_reason()
+
 
 class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
     challenges = ChallengeWithCompletionStatusSerializer(many=True, read_only=True)
@@ -427,6 +455,8 @@ class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
             "end_date",
             "challenges",
             "challenges_count",
+            "is_failed",
+            "is_failed_reason",
             "created_at",
             "current_streak",
         )
