@@ -223,7 +223,7 @@ CELERY_BEAT_SCHEDULE = {
     "update-user-challenge-streaks": {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
         "schedule": crontab(hour=0, minute=0),
-    },
+    }
 }
 
 sentry_sdk.init(
