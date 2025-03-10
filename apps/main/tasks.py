@@ -4,11 +4,8 @@ from celery import shared_task
 from django.utils import timezone
 
 from apps.main.models import (
-    Tournament,
-    TournamentAward,
     UserAward,
     UserChallenge,
-    UserTournament,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,31 +31,6 @@ def update_all_user_challenge_streaks():
         updated_count += 1
 
     return f"Updated {updated_count} user challenge streaks"
-
-
-@shared_task
-def process_tournament_day_end():
-    """
-    Process tournament day completions for the previous day.
-    This task should be scheduled to run after the end time of the last challenge of the day.
-    """
-    current_time = timezone.localtime()
-    yesterday = current_time.date() - timezone.timedelta(days=1)
-
-    logger.info(
-        f"Processing tournament day end for date: {yesterday} (executed at {current_time})"
-    )
-
-    try:
-        UserTournament.process_day_end(yesterday)
-        logger.info(f"Successfully processed tournament day end for {yesterday}")
-    except Exception as e:
-        logger.error(f"Error processing tournament day end: {str(e)}")
-        raise
-
-
-@shared_task
-def process_tournament_awards():
     """
     Process awards for finished tournaments and deactivate them.
     This task handles both creating awards for successful participants and deactivating finished tournaments.

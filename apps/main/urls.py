@@ -2,61 +2,25 @@ from django.urls import path
 
 from apps.main.views import (
     AllChallengesCalendarAPIView,
-    BackfillTournamentDataAPIView,
-    BackfillUserChallengeCompletionAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
     ChallengeAwardListView,
     ChallengeCalendarAPIView,
-    ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
-    DeleteIncorrectCompletionsAPIView,
-    TournamentCalendarAPIView,
-    TournamentChallengeCalendarAPIView,
-    TournamentLeaderboardAPIView,
-    TournamentListAPIView,
     UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
     UserChallengeCreateAPIView,
     UserChallengeDeleteAPIView,
     UserChallengeDetailAPIView,
-    UserChallengeListAPIView,
-    UserTournamentAPIView,
+    UserChallengeListAPIView
 )
 
 app_name = "main"
 
 urlpatterns = [
-    # Tournament URLs
-    path("tournaments/", TournamentListAPIView.as_view(), name="tournament-list"),
-    path(
-        "tournaments/<int:tournament_id>/user-tournament/",
-        UserTournamentAPIView.as_view(),
-        name="tournament-user-tournament",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/calendar/",
-        TournamentCalendarAPIView.as_view(),
-        name="tournament-calendar",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/challenges/<int:challenge_id>/calendar/",
-        TournamentChallengeCalendarAPIView.as_view(),
-        name="tournament-challenge-calendar",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/leaderboard/",
-        TournamentLeaderboardAPIView.as_view(),
-        name="tournament-leaderboard",
-    ),
     # Challenge URLs
     path("challenges/", ChallengeListAPIView.as_view(), name="challenge-list"),
-    path(
-        "challenges/<int:id>/",
-        ChallengeDetailAPIView.as_view(),
-        name="challenge-detail",
-    ),
     # User Challenge URLs
     path(
         "user-challenges/",
@@ -117,21 +81,5 @@ urlpatterns = [
         "admin/update-streaks/",
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
-    ),
-    # Backfill URLs
-    path(
-        "backfill-challenge-completions/",
-        BackfillUserChallengeCompletionAPIView.as_view(),
-        name="backfill-challenge-completions",
-    ),
-    path(
-        "delete-incorrect-completions/",
-        DeleteIncorrectCompletionsAPIView.as_view(),
-        name="delete-incorrect-completions",
-    ),
-    path(
-        "backfill-tournament-data/",
-        BackfillTournamentDataAPIView.as_view(),
-        name="backfill-tournament-data",
     ),
 ]
