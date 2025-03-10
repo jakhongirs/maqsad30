@@ -8,6 +8,7 @@ from apps.main.models import (
     SuperChallengeAward,
     UserChallenge,
     UserChallengeCompletion,
+    UserSuperAward,
     UserSuperChallenge,
     UserSuperChallengeCompletion,
 )
@@ -616,14 +617,41 @@ class SuperChallengeAwardSerializer(serializers.ModelSerializer):
             "super_challenge_title",
             "award_icon",
             "is_user_awarded",
-            "created_at",
         )
 
     def get_award_icon(self, obj):
         request = self.context.get("request")
-        if obj.super_challenge.award_icon:
-            return request.build_absolute_uri(obj.super_challenge.award_icon.url)
-        return None
+        return (
+            request.build_absolute_uri(obj.award_icon.url) if obj.award_icon else None
+        )
 
     def get_is_user_awarded(self, obj):
-        return bool(getattr(obj, "_prefetched_user_awards", []))
+        request = self.context.get("request")
+        return UserSuperAward.objects.filter(
+            user=request.user, super_challenge_award=obj
+        ).exists()
+
+
+class SuperChallengeLeaderboardSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    highest_streak = serializers.IntegerField()
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "user",
+            "highest_streak",
+        )
+
+    def get_user(self, obj):
+        request = self.context.get("request")
+        user = obj.user
+        return {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "telegram_username": user.telegram_username,
+            "telegram_photo": request.build_absolute_uri(user.telegram_photo.url)
+            if user.telegram_photo
+            else user.telegram_photo_url,
+        }

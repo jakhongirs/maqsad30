@@ -36,6 +36,7 @@ from apps.main.serializers import (
     SuperChallengeAwardSerializer,
     SuperChallengeCalendarSerializer,
     SuperChallengeDetailSerializer,
+    SuperChallengeLeaderboardSerializer,
     SuperChallengeListSerializer,
     UserChallengeCompletionSerializer,
     UserChallengeCreateSerializer,
@@ -564,14 +565,35 @@ class SuperChallengeAwardListView(ListAPIView):
     permission_classes = [IsTelegramUser]
 
     def get_queryset(self):
-        if not self.request.user.is_authenticated:
-            return SuperChallengeAward.objects.none()
-
-        # Get all awards and prefetch user awards for the current user
-        return SuperChallengeAward.objects.all().prefetch_related(
-            Prefetch(
-                "user_awards",
-                queryset=UserSuperAward.objects.filter(user=self.request.user),
-                to_attr="_prefetched_user_awards",
+        return (
+            SuperChallengeAward.objects.all()
+            .select_related("super_challenge")
+            .prefetch_related(
+                Prefetch(
+                    "user_super_awards",
+                    queryset=UserSuperAward.objects.filter(user=self.request.user),
+                    to_attr="_prefetched_user_awards",
+                )
             )
+        )
+
+
+class SuperChallengeLeaderboardAPIView(ListAPIView):
+    serializer_class = SuperChallengeLeaderboardSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        super_challenge_id = self.kwargs["id"]
+        try:
+            super_challenge = SuperChallenge.objects.get(id=super_challenge_id)
+        except SuperChallenge.DoesNotExist:
+            raise ValidationError("Super Challenge not found")
+
+        # Query UserSuperChallenge directly to get unique entries
+        return (
+            UserSuperChallenge.objects.filter(
+                super_challenge_id=super_challenge_id, highest_streak__gt=0
+            )
+            .select_related("user")
+            .order_by("-highest_streak")
         )

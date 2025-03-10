@@ -13,6 +13,7 @@ from apps.main.views import (  # Super Challenge views
     SuperChallengeAwardListView,
     SuperChallengeCalendarAPIView,
     SuperChallengeDetailAPIView,
+    SuperChallengeLeaderboardAPIView,
     SuperChallengeListAPIView,
     UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
@@ -130,5 +131,10 @@ urlpatterns = [
         "super-challenges/awards/",
         SuperChallengeAwardListView.as_view(),
         name="super-challenge-awards",
+    ),
+    path(
+        "super-challenges/<int:id>/leaderboard/",
+        SuperChallengeLeaderboardAPIView.as_view(),
+        name="super-challenge-leaderboard",
     ),
 ]
