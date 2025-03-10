@@ -288,6 +288,7 @@ class UserChallengeDetailSerializer(UserChallengeListSerializer):
 
 class SuperChallengeListSerializer(serializers.ModelSerializer):
     challenges_count = serializers.SerializerMethodField()
+    is_failed = serializers.SerializerMethodField()
 
     class Meta:
         model = SuperChallenge
@@ -299,11 +300,23 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
             "start_date",
             "end_date",
             "challenges_count",
+            "is_failed",
             "created_at",
         )
 
     def get_challenges_count(self, obj):
         return obj.challenges.count()
+
+    def get_is_failed(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        user_super_challenge = UserSuperChallenge.objects.filter(
+            user=request.user, super_challenge=obj, is_active=True
+        ).first()
+
+        return user_super_challenge.is_failed if user_super_challenge else False
 
 
 class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
