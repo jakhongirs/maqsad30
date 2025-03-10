@@ -25,6 +25,7 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             "rules",
         )
 
+
 class UserChallengeCompletionSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserChallengeCompletion
@@ -215,9 +216,22 @@ class UserChallengeCreateSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         challenge = validated_data["challenge"]
 
-        user_challenge, created = UserChallenge.objects.get_or_create(
+        # Check if a user challenge already exists (active or inactive)
+        user_challenge = UserChallenge.objects.filter(
             user=user, challenge=challenge
-        )
+        ).first()
+
+        if user_challenge:
+            # If it exists but is inactive, reactivate it
+            if not user_challenge.is_active:
+                user_challenge.reactivate()
+            # If it's already active, just return it
+            return user_challenge
+        else:
+            # Create a new user challenge
+            user_challenge = UserChallenge.objects.create(
+                user=user, challenge=challenge
+            )
 
         return user_challenge
 

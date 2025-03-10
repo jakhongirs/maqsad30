@@ -11,14 +11,14 @@ logger = logging.getLogger(__name__)
 @shared_task
 def update_all_user_challenge_streaks():
     """
-    Update streaks for all user challenges.
+    Update streaks for all active user challenges.
     This task is meant to be run daily to ensure streaks are properly updated
     even if users don't actively complete challenges.
     """
     today = timezone.now().date()
 
-    # Get all user challenges
-    user_challenges = UserChallenge.objects.all()
+    # Get all active user challenges
+    user_challenges = UserChallenge.objects.filter(is_active=True)
 
     updated_count = 0
     for user_challenge in user_challenges:

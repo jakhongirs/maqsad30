@@ -77,10 +77,15 @@ class UserChallengeCompletionAPIView(CreateAPIView):
             user_challenge = UserChallenge.objects.create(
                 user=self.request.user, challenge=challenge
             )
+        elif not user_challenge.is_active:
+            # If challenge exists but is inactive, reactivate it
+            user_challenge.reactivate()
 
         # Check if user has already completed the challenge today
         already_completed = UserChallengeCompletion.objects.filter(
-            user_challenge=user_challenge, completed_at__date=current_date
+            user_challenge=user_challenge,
+            completed_at__date=current_date,
+            is_active=True,
         ).exists()
 
         if already_completed:
@@ -317,7 +322,7 @@ class UserChallengeListAPIView(ListAPIView):
 
     def get_queryset(self):
         return (
-            UserChallenge.objects.filter(user=self.request.user)
+            UserChallenge.objects.filter(user=self.request.user, is_active=True)
             .select_related("challenge")
             .order_by("-current_streak", "-created_at")
         )

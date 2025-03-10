@@ -42,6 +42,7 @@ class Challenge(BaseModel):
         verbose_name = _("Challenge")
         verbose_name_plural = _("Challenges")
 
+
 class UserChallenge(BaseModel):
     user = models.ForeignKey(
         User,
@@ -62,6 +63,8 @@ class UserChallenge(BaseModel):
         _("Last completion date"), null=True, blank=True
     )
     started_at = models.DateTimeField(_("Started at"), auto_now_add=True)
+    is_active = models.BooleanField(_("Is active"), default=True)
+    has_award = models.BooleanField(_("Has award"), default=False)
 
     class Meta:
         unique_together = ["user", "challenge"]
@@ -75,13 +78,15 @@ class UserChallenge(BaseModel):
         1. Two consecutive days missed
         2. Two days missed in total
         """
-        if not self.last_completion_date:
+        if not self.last_completion_date or not self.is_active:
             return False
 
         today = timezone.now().date()
         completions = list(
             self.completions.filter(
-                completed_at__gte=self.started_at, completed_at__date__lte=today
+                completed_at__gte=self.started_at,
+                completed_at__date__lte=today,
+                is_active=True,
             )
             .order_by("completed_at__date")
             .values_list("completed_at", flat=True)
@@ -110,23 +115,59 @@ class UserChallenge(BaseModel):
 
         return missed_days >= 2
 
+    def reset_stats(self):
+        """
+        Reset the challenge stats but keep completion history
+        """
+        self.current_streak = 0
+        self.started_at = timezone.now()
+        self.save()
+
+    def deactivate(self):
+        """
+        Deactivate the challenge but keep completion history
+        """
+        self.is_active = False
+        self.save()
+
+    def reactivate(self):
+        """
+        Reactivate the challenge and reset stats
+        """
+        self.is_active = True
+        self.current_streak = 0
+        self.started_at = timezone.now()
+        self.save()
+
+    def check_and_award_if_eligible(self):
+        """
+        Check if user has achieved 30-day streak and give award if eligible
+        """
+        if self.highest_streak >= 30 and not self.has_award:
+            # Create award for the user
+            challenge_award, created = ChallengeAward.objects.get_or_create(
+                challenge=self.challenge
+            )
+            UserAward.objects.get_or_create(
+                user=self.user, challenge_award=challenge_award
+            )
+            self.has_award = True
+            self.save()
+            return True
+        return False
+
     def delete(self, *args, **kwargs):
         """
-        Override delete to handle special case of 30-day streak
+        Override delete to deactivate instead of deleting
         """
-        # Check if we have a 30-day streak before deleting
-        has_thirty_day_streak = self.highest_streak >= 30
-
-        if has_thirty_day_streak:
-            # If there's a 30-day streak, keep the completions but mark them as inactive
-            self.completions.update(is_active=False)
-            super().delete(*args, **kwargs)
-        else:
-            # If no 30-day streak, delete everything
-            self.completions.all().delete()
-            super().delete(*args, **kwargs)
+        # Instead of deleting, we deactivate the challenge
+        self.deactivate()
 
     def update_streak(self, completion_date):
+        # If challenge is not active, don't update streak
+        if not self.is_active:
+            return
+
         # Get all completions for this user challenge
         completions = self.completions.filter(is_active=True)
 
@@ -175,7 +216,11 @@ class UserChallenge(BaseModel):
         streak_lengths = [len(group) for group in streaks]
 
         # The highest streak is the length of the longest consecutive group
-        self.highest_streak = max(streak_lengths) if streak_lengths else 0
+        new_highest_streak = max(streak_lengths) if streak_lengths else 0
+
+        # Update highest streak if the new one is higher
+        if new_highest_streak > self.highest_streak:
+            self.highest_streak = new_highest_streak
 
         # The current streak is the length of the most recent group (if it includes today or yesterday)
         latest_group = streaks[-1] if streaks else []
@@ -195,9 +240,13 @@ class UserChallenge(BaseModel):
         # Update total completions based on the number of unique completion dates
         self.total_completions = len(completion_dates)
 
+        # Check for 30-day streak achievement
+        if self.highest_streak >= 30:
+            self.check_and_award_if_eligible()
+
         # Check for challenge failure conditions
         if self.has_failed():
-            self.delete()
+            self.reset_stats()
         else:
             self.save()
 
