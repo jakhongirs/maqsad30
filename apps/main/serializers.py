@@ -517,6 +517,8 @@ class SuperChallengeCalendarSerializer(serializers.ModelSerializer):
     completion_dates = serializers.SerializerMethodField()
     calendar_icon = serializers.SerializerMethodField()
     title = serializers.CharField(source="super_challenge.title")
+    start_date = serializers.DateField(source="super_challenge.start_date")
+    end_date = serializers.DateField(source="super_challenge.end_date")
 
     class Meta:
         model = UserSuperChallenge
@@ -528,6 +530,8 @@ class SuperChallengeCalendarSerializer(serializers.ModelSerializer):
             "current_streak",
             "highest_streak",
             "total_completions",
+            "start_date",
+            "end_date",
         )
 
     def get_calendar_icon(self, obj):
