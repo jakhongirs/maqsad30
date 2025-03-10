@@ -1,6 +1,4 @@
-from datetime import datetime, timedelta
-
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -34,7 +32,6 @@ from apps.main.serializers import (
     UserChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
-from apps.users.models import User
 from apps.users.permissions import IsTelegramUser
 
 
@@ -94,29 +91,6 @@ class UserChallengeCompletionAPIView(CreateAPIView):
 
         # Update streak
         user_challenge.update_streak(current_date)
-
-        # Handle tournament progress if challenge is part of active tournaments
-        active_tournaments = Tournament.objects.filter(
-            challenges__in=[challenge], is_active=True, finish_date__gte=now
-        ).distinct()
-
-        for tournament in active_tournaments:
-            user_tournament, _ = UserTournament.objects.get_or_create(
-                user=self.request.user, tournament=tournament
-            )
-
-            if not user_tournament.is_failed:
-                # Get or create today's tournament day record
-                day_record, _ = UserTournamentDay.objects.get_or_create(
-                    user_tournament=user_tournament, date=current_date
-                )
-
-                # Add the completed challenge to the day's record
-                day_record.completed_challenges.add(challenge)
-
-                # Just update completion status without checking failures
-                # Failures will be checked by the end-of-day Celery task
-                day_record.update_completion_status()
 
         return completion
 
