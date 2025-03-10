@@ -4,10 +4,13 @@ from rest_framework import serializers
 from apps.main.models import (
     Challenge,
     ChallengeAward,
-    Tournament,
+    SuperChallenge,
+    SuperChallengeAward,
     UserChallenge,
     UserChallengeCompletion,
-    UserTournament,
+    UserSuperAward,
+    UserSuperChallenge,
+    UserSuperChallengeCompletion,
 )
 
 
@@ -28,82 +31,12 @@ class ChallengeListSerializer(serializers.ModelSerializer):
         )
 
 
-class TournamentChallengeListSerializer(serializers.ModelSerializer):
-    current_streak = serializers.SerializerMethodField()
-    user_challenge_id = serializers.SerializerMethodField()
-    total_completions = serializers.SerializerMethodField()
+class ChallengeWithCompletionStatusSerializer(ChallengeListSerializer):
     is_completed_today = serializers.SerializerMethodField()
 
     class Meta:
         model = Challenge
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "calendar_icon",
-            "award_icon",
-            "video_instruction_url",
-            "video_instruction_title",
-            "rules",
-            "start_time",
-            "end_time",
-            "created_at",
-            "current_streak",
-            "user_challenge_id",
-            "total_completions",
-            "is_completed_today",
-        )
-
-    def get_current_streak(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].current_streak if user_challenges else 0
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-
-        return user_challenge.current_streak if user_challenge else 0
-
-    def get_user_challenge_id(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return None
-
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].id if user_challenges else None
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-
-        return user_challenge.id if user_challenge else None
-
-    def get_total_completions(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].total_completions if user_challenges else 0
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-
-        return user_challenge.total_completions if user_challenge else 0
+        fields = ChallengeListSerializer.Meta.fields + ("is_completed_today",)
 
     def get_is_completed_today(self, obj):
         request = self.context.get("request")
@@ -112,22 +45,82 @@ class TournamentChallengeListSerializer(serializers.ModelSerializer):
 
         today = timezone.now().date()
 
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            if not user_challenges:
-                return False
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
 
-            user_challenge = user_challenges[0]
-            if hasattr(user_challenge, "_prefetched_completions_today"):
-                return bool(user_challenge._prefetched_completions_today)
+        if not user_challenge:
+            return False
 
-        # Fallback to database query if prefetch didn't happen
+        # Check if this challenge was completed today
         return UserChallengeCompletion.objects.filter(
-            user_challenge__user=request.user,
-            user_challenge__challenge=obj,
+            user_challenge=user_challenge,
             completed_at__date=today,
+            is_active=True,
         ).exists()
+
+
+class ChallengeDetailSerializer(ChallengeListSerializer):
+    is_completed_today = serializers.SerializerMethodField()
+    total_completions = serializers.SerializerMethodField()
+    user_challenge_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Challenge
+        fields = ChallengeListSerializer.Meta.fields + (
+            "is_completed_today",
+            "total_completions",
+            "user_challenge_id",
+        )
+
+    def get_user_challenge_id(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        return user_challenge.id if user_challenge else None
+
+    def get_is_completed_today(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        today = timezone.now().date()
+
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        if not user_challenge:
+            return False
+
+        # Check if this challenge was completed today
+        return UserChallengeCompletion.objects.filter(
+            user_challenge=user_challenge,
+            completed_at__date=today,
+            is_active=True,
+        ).exists()
+
+    def get_total_completions(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        # Get the user challenge for this challenge
+        user_challenge = UserChallenge.objects.filter(
+            user=request.user, challenge=obj, is_active=True
+        ).first()
+
+        if not user_challenge:
+            return 0
+
+        return user_challenge.total_completions
 
 
 class UserChallengeCompletionSerializer(serializers.ModelSerializer):
@@ -311,60 +304,6 @@ class ChallengeAwardSerializer(serializers.ModelSerializer):
         return bool(getattr(obj, "_prefetched_user_awards", []))
 
 
-class TournamentListSerializer(serializers.ModelSerializer):
-    challenges = TournamentChallengeListSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Tournament
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "finish_date",
-            "is_active",
-            "created_at",
-            "updated_at",
-            "challenges",
-        )
-
-
-class TournamentChallengeSerializer(serializers.ModelSerializer):
-    current_streak = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Challenge
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "video_instruction_url",
-            "video_instruction_title",
-            "start_time",
-            "end_time",
-            "created_at",
-            "updated_at",
-            "rules",
-            "current_streak",
-        )
-
-    def get_current_streak(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            return 0
-
-        # Use prefetched data if available
-        if hasattr(obj, "_prefetched_user_challenges"):
-            user_challenges = obj._prefetched_user_challenges
-            return user_challenges[0].current_streak if user_challenges else 0
-
-        # Fallback to database query if prefetch didn't happen
-        user_challenge = UserChallenge.objects.filter(
-            user=request.user, challenge=obj
-        ).first()
-
-        return user_challenge.current_streak if user_challenge else 0
-
-
 class UserChallengeCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserChallenge
@@ -374,9 +313,29 @@ class UserChallengeCreateSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         challenge = validated_data["challenge"]
 
-        user_challenge, created = UserChallenge.objects.get_or_create(
+        # Check if a user challenge already exists (active or inactive)
+        user_challenge = UserChallenge.objects.filter(
             user=user, challenge=challenge
-        )
+        ).first()
+
+        if user_challenge:
+            # If it exists but is inactive, reactivate it
+            if not user_challenge.is_active:
+                user_challenge.reactivate()
+                # Set a flag to indicate this was reactivated
+                user_challenge._reactivated = True
+            else:
+                # If it's already active, just mark it as reactivated for status code purposes
+                user_challenge._reactivated = True
+            # Return the challenge
+            return user_challenge
+        else:
+            # Create a new user challenge
+            user_challenge = UserChallenge.objects.create(
+                user=user, challenge=challenge
+            )
+            # Set flag to indicate this is a new challenge
+            user_challenge._reactivated = False
 
         return user_challenge
 
@@ -420,186 +379,268 @@ class UserChallengeDetailSerializer(UserChallengeListSerializer):
         ).exists()
 
 
-class UserTournamentSerializer(serializers.ModelSerializer):
-    tournament = TournamentListSerializer()
+class SuperChallengeListSerializer(serializers.ModelSerializer):
+    challenges_count = serializers.SerializerMethodField()
+    is_failed = serializers.SerializerMethodField()
 
     class Meta:
-        model = UserTournament
-        fields = (
-            "id",
-            "tournament",
-            "consecutive_failures",
-            "total_failures",
-            "is_failed",
-            "started_at",
-        )
-
-
-class TournamentDetailSerializer(serializers.ModelSerializer):
-    challenges = TournamentChallengeListSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Tournament
+        model = SuperChallenge
         fields = (
             "id",
             "title",
+            "description",
             "icon",
-            "finish_date",
-            "is_active",
-            "created_at",
-            "updated_at",
-            "challenges",
-        )
-
-
-class TournamentCalendarSerializer(serializers.ModelSerializer):
-    calendar_data = serializers.SerializerMethodField()
-    calendar_icon = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Tournament
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "calendar_icon",
-            "award_icon",
             "start_date",
-            "finish_date",
-            "calendar_data",
+            "end_date",
+            "challenges_count",
+            "is_failed",
+            "created_at",
+        )
+
+    def get_challenges_count(self, obj):
+        return obj.challenges.count()
+
+    def get_is_failed(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+
+        user_super_challenge = UserSuperChallenge.objects.filter(
+            user=request.user, super_challenge=obj, is_active=True
+        ).first()
+
+        return user_super_challenge.is_failed if user_super_challenge else False
+
+
+class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
+    challenges = ChallengeWithCompletionStatusSerializer(many=True, read_only=True)
+    current_streak = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SuperChallenge
+        fields = (
+            "id",
+            "title",
+            "description",
+            "icon",
+            "start_date",
+            "end_date",
+            "challenges",
+            "challenges_count",
+            "created_at",
+            "current_streak",
+        )
+
+    def get_current_streak(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return 0
+
+        user_super_challenge = UserSuperChallenge.objects.filter(
+            user=request.user, super_challenge=obj
+        ).first()
+
+        return user_super_challenge.current_streak if user_super_challenge else 0
+
+
+class UserSuperChallengeListSerializer(serializers.ModelSerializer):
+    super_challenge = SuperChallengeListSerializer()
+    is_completed_today = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "super_challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "is_completed_today",
+            "is_failed",
+            "created_at",
+        )
+
+    def get_is_completed_today(self, obj):
+        return obj.is_completed_today()
+
+
+class UserSuperChallengeDetailSerializer(UserSuperChallengeListSerializer):
+    super_challenge = SuperChallengeDetailSerializer()
+    included_challenges_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "super_challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "is_completed_today",
+            "is_failed",
+            "included_challenges_status",
+            "created_at",
+        )
+
+    def get_included_challenges_status(self, obj):
+        """
+        Return the status of each challenge in the super challenge
+        """
+        today = timezone.now().date()
+        result = []
+
+        for challenge in obj.super_challenge.challenges.all():
+            # Get the user challenge for this challenge
+            user_challenge = UserChallenge.objects.filter(
+                user=obj.user, challenge=challenge, is_active=True
+            ).first()
+
+            status = {
+                "challenge_id": challenge.id,
+                "challenge_title": challenge.title,
+                "is_active": bool(user_challenge),
+                "is_completed_today": False,
+                "current_streak": 0,
+                "highest_streak": 0,
+            }
+
+            if user_challenge:
+                # Check if this challenge was completed today
+                completed_today = UserChallengeCompletion.objects.filter(
+                    user_challenge=user_challenge,
+                    completed_at__date=today,
+                    is_active=True,
+                ).exists()
+
+                status.update(
+                    {
+                        "is_completed_today": completed_today,
+                        "current_streak": user_challenge.current_streak,
+                        "highest_streak": user_challenge.highest_streak,
+                    }
+                )
+
+            result.append(status)
+
+        return result
+
+
+class SuperChallengeCalendarSerializer(serializers.ModelSerializer):
+    completion_dates = serializers.SerializerMethodField()
+    calendar_icon = serializers.SerializerMethodField()
+    title = serializers.CharField(source="super_challenge.title")
+    start_date = serializers.DateField(source="super_challenge.start_date")
+    end_date = serializers.DateField(source="super_challenge.end_date")
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "title",
+            "calendar_icon",
+            "completion_dates",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "start_date",
+            "end_date",
         )
 
     def get_calendar_icon(self, obj):
         request = self.context.get("request")
-        if obj.calendar_icon:
-            return request.build_absolute_uri(obj.calendar_icon.url)
+        if obj.super_challenge.calendar_icon:
+            return request.build_absolute_uri(obj.super_challenge.calendar_icon.url)
         return None
 
-    def get_calendar_data(self, obj):
+    def get_completion_dates(self, obj):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return []
 
-        month = self.context.get("month")
-        year = self.context.get("year")
+        month = self.context.get("month", timezone.now().month)
+        year = self.context.get("year", timezone.now().year)
 
-        # Get user tournament
-        user_tournament = obj.user_tournaments.filter(user=request.user).first()
-        if not user_tournament:
-            return []
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_completions"):
+            return [
+                timezone.localtime(completion.completed_at).date().isoformat()
+                for completion in obj._prefetched_completions
+            ]
 
-        # Get all daily records for the specified month
-        daily_records = user_tournament.daily_records.filter(
-            date__year=year, date__month=month
-        ).prefetch_related("completed_challenges")
+        # Fallback to database query if prefetch didn't happen
+        completions = UserSuperChallengeCompletion.objects.filter(
+            user_super_challenge=obj,
+            completed_at__year=year,
+            completed_at__month=month,
+        ).values_list("completed_at", flat=True)
 
-        calendar_data = []
-        for record in daily_records:
-            calendar_data.append(
-                {
-                    "date": record.date,
-                    "is_completed": record.is_completed,
-                    "completed_challenges": [
-                        {
-                            "id": challenge.id,
-                            "title": challenge.title,
-                            "icon": request.build_absolute_uri(challenge.icon.url)
-                            if challenge.icon
-                            else None,
-                            "calendar_icon": request.build_absolute_uri(
-                                challenge.calendar_icon.url
-                            )
-                            if challenge.calendar_icon
-                            else None,
-                        }
-                        for challenge in record.completed_challenges.all()
-                    ],
-                }
-            )
-
-        return calendar_data
+        return [
+            timezone.localtime(completion).date().isoformat()
+            for completion in completions
+        ]
 
 
-class TournamentChallengeCalendarSerializer(serializers.ModelSerializer):
+class AllSuperChallengesCalendarSerializer(serializers.Serializer):
     calendar_data = serializers.SerializerMethodField()
-    calendar_icon = serializers.SerializerMethodField()
-    challenge = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Tournament
-        fields = (
-            "id",
-            "title",
-            "icon",
-            "calendar_icon",
-            "award_icon",
-            "start_date",
-            "finish_date",
-            "challenge",
-            "calendar_data",
-        )
-
-    def get_calendar_icon(self, obj):
-        request = self.context.get("request")
-        if obj.calendar_icon:
-            return request.build_absolute_uri(obj.calendar_icon.url)
-        return None
-
-    def get_challenge(self, obj):
-        challenge = self.context.get("challenge")
-        request = self.context.get("request")
-        if not challenge:
-            return None
-
-        return {
-            "id": challenge.id,
-            "title": challenge.title,
-            "icon": request.build_absolute_uri(challenge.icon.url)
-            if challenge.icon
-            else None,
-            "calendar_icon": request.build_absolute_uri(challenge.calendar_icon.url)
-            if challenge.calendar_icon
-            else None,
-        }
 
     def get_calendar_data(self, obj):
         request = self.context.get("request")
-        challenge = self.context.get("challenge")
-        if not request or not request.user.is_authenticated or not challenge:
-            return []
-
         month = self.context.get("month")
         year = self.context.get("year")
 
-        # Get user tournament
-        user_tournament = obj.user_tournaments.filter(user=request.user).first()
-        if not user_tournament:
-            return []
+        user_super_challenges = obj.get("user_super_challenges", [])
 
-        # Get all daily records for the specified month
-        daily_records = user_tournament.daily_records.filter(
-            date__year=year, date__month=month
-        ).prefetch_related("completed_challenges")
+        result = []
+        for user_super_challenge in user_super_challenges:
+            serializer = SuperChallengeCalendarSerializer(
+                user_super_challenge,
+                context={"request": request, "month": month, "year": year},
+            )
+            result.append(serializer.data)
 
-        calendar_data = []
-        for record in daily_records:
-            # Check if the specific challenge was completed on this day
-            if challenge in record.completed_challenges.all():
-                calendar_data.append({"date": record.date, "is_completed": True})
-
-        return calendar_data
+        return result
 
 
-class TournamentLeaderboardSerializer(serializers.ModelSerializer):
-    user = serializers.SerializerMethodField()
-    completed_days = serializers.SerializerMethodField()
+class SuperChallengeAwardSerializer(serializers.ModelSerializer):
+    super_challenge_title = serializers.CharField(
+        source="super_challenge.title", read_only=True
+    )
+    award_icon = serializers.SerializerMethodField()
+    is_user_awarded = serializers.SerializerMethodField()
 
     class Meta:
-        model = UserTournament
+        model = SuperChallengeAward
+        fields = (
+            "id",
+            "super_challenge_title",
+            "award_icon",
+            "is_user_awarded",
+        )
+
+    def get_award_icon(self, obj):
+        request = self.context.get("request")
+        return (
+            request.build_absolute_uri(obj.award_icon.url) if obj.award_icon else None
+        )
+
+    def get_is_user_awarded(self, obj):
+        request = self.context.get("request")
+        return UserSuperAward.objects.filter(
+            user=request.user, super_challenge_award=obj
+        ).exists()
+
+
+class SuperChallengeLeaderboardSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    highest_streak = serializers.IntegerField()
+
+    class Meta:
+        model = UserSuperChallenge
         fields = (
             "user",
-            "completed_days",
-            "is_failed",
+            "highest_streak",
         )
 
     def get_user(self, obj):
@@ -614,6 +655,3 @@ class TournamentLeaderboardSerializer(serializers.ModelSerializer):
             if user.telegram_photo
             else user.telegram_photo_url,
         }
-
-    def get_completed_days(self, obj):
-        return obj.daily_records.filter(is_completed=True).count()

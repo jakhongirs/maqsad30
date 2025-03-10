@@ -3,13 +3,7 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
-from apps.main.models import (
-    Tournament,
-    TournamentAward,
-    UserAward,
-    UserChallenge,
-    UserTournament,
-)
+from apps.main.models import UserChallenge, UserSuperChallenge
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +11,14 @@ logger = logging.getLogger(__name__)
 @shared_task
 def update_all_user_challenge_streaks():
     """
-    Update streaks for all user challenges.
+    Update streaks for all active user challenges and super challenges.
     This task is meant to be run daily to ensure streaks are properly updated
     even if users don't actively complete challenges.
     """
     today = timezone.now().date()
 
-    # Get all user challenges
-    user_challenges = UserChallenge.objects.all()
+    # Get all active user challenges
+    user_challenges = UserChallenge.objects.filter(is_active=True)
 
     updated_count = 0
     for user_challenge in user_challenges:
@@ -33,70 +27,38 @@ def update_all_user_challenge_streaks():
         user_challenge.update_streak(today)
         updated_count += 1
 
-    return f"Updated {updated_count} user challenge streaks"
-
-
-@shared_task
-def process_tournament_day_end():
-    """
-    Process tournament day completions for the previous day.
-    This task should be scheduled to run after the end time of the last challenge of the day.
-    """
-    current_time = timezone.localtime()
-    yesterday = current_time.date() - timezone.timedelta(days=1)
-
-    logger.info(
-        f"Processing tournament day end for date: {yesterday} (executed at {current_time})"
+    # Get all active user super challenges that haven't failed yet
+    user_super_challenges = UserSuperChallenge.objects.filter(
+        is_active=True,
+        is_failed=False,
+        super_challenge__start_date__lte=today,
+        super_challenge__end_date__gte=today,
     )
 
-    try:
-        UserTournament.process_day_end(yesterday)
-        logger.info(f"Successfully processed tournament day end for {yesterday}")
-    except Exception as e:
-        logger.error(f"Error processing tournament day end: {str(e)}")
-        raise
+    super_updated_count = 0
+    super_failed_count = 0
 
+    for user_super_challenge in user_super_challenges:
+        # Check if the super challenge has failed based on previous days
+        # has_failed() will update streak information if the challenge has failed
+        if user_super_challenge.has_failed():
+            super_failed_count += 1
+            continue
 
-@shared_task
-def process_tournament_awards():
-    """
-    Process awards for finished tournaments and deactivate them.
-    This task handles both creating awards for successful participants and deactivating finished tournaments.
-    """
-    now = timezone.localtime()
-    logger.info(f"Processing tournament awards at: {now}")
+        # If not failed, update the streak
+        user_super_challenge.update_streak(today)
+        super_updated_count += 1
 
-    try:
-        # Get finished tournaments that are still active
-        finished_tournaments = Tournament.objects.filter(
-            finish_date__lte=now, is_active=True
-        )
+    # Also check for any challenges that were previously marked as failed
+    # but need their streak information updated
+    failed_challenges = UserSuperChallenge.objects.filter(
+        is_active=True, is_failed=True, super_challenge__end_date__gte=today
+    )
 
-        for tournament in finished_tournaments:
-            # Create tournament award if it doesn't exist
-            tournament_award, _ = TournamentAward.objects.get_or_create(
-                tournament=tournament
-            )
+    failed_updated_count = 0
+    for failed_challenge in failed_challenges:
+        # Recalculate streak information for failed challenges
+        failed_challenge.calculate_streak_before_failure()
+        failed_updated_count += 1
 
-            # Get all user tournaments that were not failed
-            successful_user_tournaments = UserTournament.objects.filter(
-                tournament=tournament, is_failed=False
-            )
-
-            # Create awards for successful users
-            for user_tournament in successful_user_tournaments:
-                UserAward.objects.get_or_create(
-                    user=user_tournament.user, tournament_award=tournament_award
-                )
-
-            # Mark tournament as inactive after processing
-            tournament.is_active = False
-            tournament.save()
-            logger.info(
-                f"Processed awards and deactivated tournament: {tournament.title}"
-            )
-
-        return f"Successfully processed awards for {finished_tournaments.count()} tournaments"
-    except Exception as e:
-        logger.error(f"Error processing tournament awards: {str(e)}")
-        raise
+    return f"Updated {updated_count} user challenge streaks and {super_updated_count} super challenge streaks. {super_failed_count} super challenges failed. Updated {failed_updated_count} previously failed challenges."

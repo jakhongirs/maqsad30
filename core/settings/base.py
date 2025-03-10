@@ -222,16 +222,8 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_BEAT_SCHEDULE = {
     "update-user-challenge-streaks": {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
-        "schedule": crontab(hour=5, minute=0),
-    },
-    "process-tournament-day-end": {
-        "task": "apps.main.tasks.process_tournament_day_end",
-        "schedule": crontab(minute=5, hour=0),
-    },
-    "process-tournament-awards": {
-        "task": "apps.main.tasks.process_tournament_awards",
-        "schedule": crontab(minute=5, hour=15),
-    },
+        "schedule": crontab(hour=0, minute=0),
+    }
 }
 
 sentry_sdk.init(

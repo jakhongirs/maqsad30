@@ -1,9 +1,8 @@
 from django.urls import path
 
-from apps.main.views import (
+from apps.main.views import (  # Super Challenge views
     AllChallengesCalendarAPIView,
-    BackfillTournamentDataAPIView,
-    BackfillUserChallengeCompletionAPIView,
+    AllSuperChallengesCalendarAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
     ChallengeAwardListView,
@@ -11,45 +10,25 @@ from apps.main.views import (
     ChallengeDetailAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
-    DeleteIncorrectCompletionsAPIView,
-    TournamentCalendarAPIView,
-    TournamentChallengeCalendarAPIView,
-    TournamentLeaderboardAPIView,
-    TournamentListAPIView,
+    GenerateSuperChallengeDataAPIView,
+    SuperChallengeAwardListView,
+    SuperChallengeCalendarAPIView,
+    SuperChallengeDetailAPIView,
+    SuperChallengeLeaderboardAPIView,
+    SuperChallengeListAPIView,
     UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
     UserChallengeCreateAPIView,
     UserChallengeDeleteAPIView,
     UserChallengeDetailAPIView,
     UserChallengeListAPIView,
-    UserTournamentAPIView,
+    UserSuperChallengeDetailAPIView,
+    UserSuperChallengeListAPIView,
 )
 
 app_name = "main"
 
 urlpatterns = [
-    # Tournament URLs
-    path("tournaments/", TournamentListAPIView.as_view(), name="tournament-list"),
-    path(
-        "tournaments/<int:tournament_id>/user-tournament/",
-        UserTournamentAPIView.as_view(),
-        name="tournament-user-tournament",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/calendar/",
-        TournamentCalendarAPIView.as_view(),
-        name="tournament-calendar",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/challenges/<int:challenge_id>/calendar/",
-        TournamentChallengeCalendarAPIView.as_view(),
-        name="tournament-challenge-calendar",
-    ),
-    path(
-        "tournaments/<int:tournament_id>/leaderboard/",
-        TournamentLeaderboardAPIView.as_view(),
-        name="tournament-leaderboard",
-    ),
     # Challenge URLs
     path("challenges/", ChallengeListAPIView.as_view(), name="challenge-list"),
     path(
@@ -118,20 +97,50 @@ urlpatterns = [
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
     ),
-    # Backfill URLs
+    # Super Challenge URLs
     path(
-        "backfill-challenge-completions/",
-        BackfillUserChallengeCompletionAPIView.as_view(),
-        name="backfill-challenge-completions",
+        "super-challenges/",
+        SuperChallengeListAPIView.as_view(),
+        name="super-challenge-list",
     ),
     path(
-        "delete-incorrect-completions/",
-        DeleteIncorrectCompletionsAPIView.as_view(),
-        name="delete-incorrect-completions",
+        "super-challenges/<int:id>/",
+        SuperChallengeDetailAPIView.as_view(),
+        name="super-challenge-detail",
     ),
     path(
-        "backfill-tournament-data/",
-        BackfillTournamentDataAPIView.as_view(),
-        name="backfill-tournament-data",
+        "user-super-challenges/",
+        UserSuperChallengeListAPIView.as_view(),
+        name="user-super-challenge-list",
+    ),
+    path(
+        "user-super-challenges/<int:id>/",
+        UserSuperChallengeDetailAPIView.as_view(),
+        name="user-super-challenge-detail",
+    ),
+    path(
+        "user-super-challenges/<int:id>/calendar/",
+        SuperChallengeCalendarAPIView.as_view(),
+        name="user-super-challenge-calendar",
+    ),
+    path(
+        "super-challenges/calendar/",
+        AllSuperChallengesCalendarAPIView.as_view(),
+        name="all-super-challenges-calendar",
+    ),
+    path(
+        "super-challenges/awards/",
+        SuperChallengeAwardListView.as_view(),
+        name="super-challenge-awards",
+    ),
+    path(
+        "super-challenges/<int:id>/leaderboard/",
+        SuperChallengeLeaderboardAPIView.as_view(),
+        name="super-challenge-leaderboard",
+    ),
+    path(
+        "admin/generate-super-challenge-data/",
+        GenerateSuperChallengeDataAPIView.as_view(),
+        name="generate-super-challenge-data",
     ),
 ]
