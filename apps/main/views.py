@@ -15,21 +15,33 @@ from rest_framework.views import APIView
 from apps.main.models import (
     Challenge,
     ChallengeAward,
+    SuperChallenge,
+    SuperChallengeAward,
     UserAward,
     UserChallenge,
     UserChallengeCompletion,
+    UserSuperAward,
+    UserSuperChallenge,
+    UserSuperChallengeCompletion,
 )
 from apps.main.serializers import (
     AllChallengesCalendarSerializer,
+    AllSuperChallengesCalendarSerializer,
     Challenge30DaysPlusStreakSerializer,
     ChallengeAwardSerializer,
     ChallengeCalendarSerializer,
     ChallengeLeaderboardSerializer,
     ChallengeListSerializer,
+    SuperChallengeAwardSerializer,
+    SuperChallengeCalendarSerializer,
+    SuperChallengeDetailSerializer,
+    SuperChallengeListSerializer,
     UserChallengeCompletionSerializer,
     UserChallengeCreateSerializer,
     UserChallengeDetailSerializer,
     UserChallengeListSerializer,
+    UserSuperChallengeDetailSerializer,
+    UserSuperChallengeListSerializer,
 )
 from apps.main.tasks import update_all_user_challenge_streaks
 from apps.users.permissions import IsTelegramUser
@@ -97,7 +109,40 @@ class UserChallengeCompletionAPIView(CreateAPIView):
         # Update streak
         user_challenge.update_streak(current_date)
 
+        # Check if this challenge is part of any active super challenges
+        # and update them if all challenges in the super challenge are completed
+        self.check_and_update_super_challenges(challenge)
+
         return completion
+
+    def check_and_update_super_challenges(self, challenge):
+        """
+        Check if the completed challenge is part of any super challenges,
+        and if so, check if all challenges in those super challenges are completed.
+        If all are completed, create a completion record for the super challenge.
+        """
+        today = timezone.now().date()
+
+        # Get all active super challenges that include this challenge
+        super_challenges = SuperChallenge.objects.filter(
+            challenges=challenge, start_date__lte=today, end_date__gte=today
+        )
+
+        for super_challenge in super_challenges:
+            # Get or create the user super challenge
+            user_super_challenge, created = UserSuperChallenge.objects.get_or_create(
+                user=self.request.user,
+                super_challenge=super_challenge,
+                defaults={"is_active": True, "is_failed": False},
+            )
+
+            # If the user super challenge is failed, skip it
+            if user_super_challenge.is_failed:
+                continue
+
+            # Check if all challenges in this super challenge are completed today
+            # and create a completion if they are
+            user_super_challenge.check_and_create_completion()
 
 
 class ChallengeCalendarAPIView(RetrieveAPIView):
@@ -359,5 +404,159 @@ class UserChallengeDetailAPIView(RetrieveAPIView):
                     ),
                     to_attr="_prefetched_completions_today",
                 )
+            )
+        )
+
+
+# Super Challenge views
+class SuperChallengeListAPIView(ListAPIView):
+    serializer_class = SuperChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        today = timezone.now().date()
+        return SuperChallenge.objects.filter(
+            start_date__lte=today, end_date__gte=today
+        ).order_by("start_date")
+
+
+class SuperChallengeDetailAPIView(RetrieveAPIView):
+    serializer_class = SuperChallengeDetailSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return SuperChallenge.objects.all()
+
+
+class UserSuperChallengeListAPIView(ListAPIView):
+    serializer_class = UserSuperChallengeListSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        today = timezone.now().date()
+        return (
+            UserSuperChallenge.objects.filter(
+                user=self.request.user,
+                is_failed=False,
+                super_challenge__start_date__lte=today,
+                super_challenge__end_date__gte=today,
+            )
+            .select_related("super_challenge")
+            .order_by("-current_streak", "-created_at")
+        )
+
+
+class UserSuperChallengeDetailAPIView(RetrieveAPIView):
+    serializer_class = UserSuperChallengeDetailSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        return (
+            UserSuperChallenge.objects.filter(user=self.request.user)
+            .select_related("super_challenge")
+            .prefetch_related("super_challenge__challenges")
+        )
+
+
+class SuperChallengeCalendarAPIView(RetrieveAPIView):
+    serializer_class = SuperChallengeCalendarSerializer
+    permission_classes = [IsTelegramUser]
+    lookup_field = "id"
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return UserSuperChallenge.objects.none()
+
+        try:
+            month = int(self.request.query_params.get("month", timezone.now().month))
+            year = int(self.request.query_params.get("year", timezone.now().year))
+            if not 1 <= month <= 12:
+                raise ValidationError("Month must be between 1 and 12")
+        except ValueError:
+            raise ValidationError("Invalid month or year format")
+
+        return (
+            UserSuperChallenge.objects.filter(user=self.request.user)
+            .select_related("super_challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserSuperChallengeCompletion.objects.filter(
+                        completed_at__year=year, completed_at__month=month
+                    ),
+                    to_attr="_prefetched_completions",
+                )
+            )
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        try:
+            context["month"] = int(
+                self.request.query_params.get("month", timezone.now().month)
+            )
+            context["year"] = int(
+                self.request.query_params.get("year", timezone.now().year)
+            )
+        except ValueError:
+            context["month"] = timezone.now().month
+            context["year"] = timezone.now().year
+
+        return context
+
+
+class AllSuperChallengesCalendarAPIView(APIView):
+    permission_classes = [IsTelegramUser]
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({"calendar_data": []})
+
+        try:
+            month = int(request.query_params.get("month", timezone.now().month))
+            year = int(request.query_params.get("year", timezone.now().year))
+            if not 1 <= month <= 12:
+                raise ValidationError("Month must be between 1 and 12")
+        except ValueError:
+            raise ValidationError("Invalid month or year format")
+
+        # Get all completions for the month in a single query
+        user_super_challenges = (
+            UserSuperChallenge.objects.filter(user=request.user)
+            .select_related("super_challenge")
+            .prefetch_related(
+                Prefetch(
+                    "completions",
+                    queryset=UserSuperChallengeCompletion.objects.filter(
+                        completed_at__year=year, completed_at__month=month
+                    ).order_by("completed_at"),
+                    to_attr="_prefetched_completions",
+                )
+            )
+        )
+
+        context = {"request": request, "month": month, "year": year}
+        serializer = AllSuperChallengesCalendarSerializer(
+            {"user_super_challenges": user_super_challenges}, context=context
+        )
+        return Response(serializer.data)
+
+
+class SuperChallengeAwardListView(ListAPIView):
+    serializer_class = SuperChallengeAwardSerializer
+    permission_classes = [IsTelegramUser]
+
+    def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return SuperChallengeAward.objects.none()
+
+        # Get all awards and prefetch user awards for the current user
+        return SuperChallengeAward.objects.all().prefetch_related(
+            Prefetch(
+                "user_awards",
+                queryset=UserSuperAward.objects.filter(user=self.request.user),
+                to_attr="_prefetched_user_awards",
             )
         )

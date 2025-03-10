@@ -4,8 +4,12 @@ from rest_framework import serializers
 from apps.main.models import (
     Challenge,
     ChallengeAward,
+    SuperChallenge,
+    SuperChallengeAward,
     UserChallenge,
     UserChallengeCompletion,
+    UserSuperChallenge,
+    UserSuperChallengeCompletion,
 )
 
 
@@ -280,3 +284,224 @@ class UserChallengeDetailSerializer(UserChallengeListSerializer):
         return UserChallengeCompletion.objects.filter(
             user_challenge=obj, completed_at__date=today
         ).exists()
+
+
+class SuperChallengeListSerializer(serializers.ModelSerializer):
+    challenges_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SuperChallenge
+        fields = (
+            "id",
+            "title",
+            "description",
+            "icon",
+            "start_date",
+            "end_date",
+            "challenges_count",
+            "created_at",
+        )
+
+    def get_challenges_count(self, obj):
+        return obj.challenges.count()
+
+
+class SuperChallengeDetailSerializer(SuperChallengeListSerializer):
+    challenges = ChallengeListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SuperChallenge
+        fields = (
+            "id",
+            "title",
+            "description",
+            "icon",
+            "start_date",
+            "end_date",
+            "challenges",
+            "challenges_count",
+            "created_at",
+        )
+
+
+class UserSuperChallengeListSerializer(serializers.ModelSerializer):
+    super_challenge = SuperChallengeListSerializer()
+    is_completed_today = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "super_challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "is_completed_today",
+            "is_failed",
+            "created_at",
+        )
+
+    def get_is_completed_today(self, obj):
+        return obj.is_completed_today()
+
+
+class UserSuperChallengeDetailSerializer(UserSuperChallengeListSerializer):
+    super_challenge = SuperChallengeDetailSerializer()
+    included_challenges_status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "super_challenge",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+            "last_completion_date",
+            "is_completed_today",
+            "is_failed",
+            "included_challenges_status",
+            "created_at",
+        )
+
+    def get_included_challenges_status(self, obj):
+        """
+        Return the status of each challenge in the super challenge
+        """
+        today = timezone.now().date()
+        result = []
+
+        for challenge in obj.super_challenge.challenges.all():
+            # Get the user challenge for this challenge
+            user_challenge = UserChallenge.objects.filter(
+                user=obj.user, challenge=challenge, is_active=True
+            ).first()
+
+            status = {
+                "challenge_id": challenge.id,
+                "challenge_title": challenge.title,
+                "is_active": bool(user_challenge),
+                "is_completed_today": False,
+                "current_streak": 0,
+                "highest_streak": 0,
+            }
+
+            if user_challenge:
+                # Check if this challenge was completed today
+                completed_today = UserChallengeCompletion.objects.filter(
+                    user_challenge=user_challenge,
+                    completed_at__date=today,
+                    is_active=True,
+                ).exists()
+
+                status.update(
+                    {
+                        "is_completed_today": completed_today,
+                        "current_streak": user_challenge.current_streak,
+                        "highest_streak": user_challenge.highest_streak,
+                    }
+                )
+
+            result.append(status)
+
+        return result
+
+
+class SuperChallengeCalendarSerializer(serializers.ModelSerializer):
+    completion_dates = serializers.SerializerMethodField()
+    calendar_icon = serializers.SerializerMethodField()
+    title = serializers.CharField(source="super_challenge.title")
+
+    class Meta:
+        model = UserSuperChallenge
+        fields = (
+            "id",
+            "title",
+            "calendar_icon",
+            "completion_dates",
+            "current_streak",
+            "highest_streak",
+            "total_completions",
+        )
+
+    def get_calendar_icon(self, obj):
+        request = self.context.get("request")
+        if obj.super_challenge.calendar_icon:
+            return request.build_absolute_uri(obj.super_challenge.calendar_icon.url)
+        return None
+
+    def get_completion_dates(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return []
+
+        month = self.context.get("month", timezone.now().month)
+        year = self.context.get("year", timezone.now().year)
+
+        # Use prefetched data if available
+        if hasattr(obj, "_prefetched_completions"):
+            return [
+                timezone.localtime(completion.completed_at).date().isoformat()
+                for completion in obj._prefetched_completions
+            ]
+
+        # Fallback to database query if prefetch didn't happen
+        completions = UserSuperChallengeCompletion.objects.filter(
+            user_super_challenge=obj,
+            completed_at__year=year,
+            completed_at__month=month,
+        ).values_list("completed_at", flat=True)
+
+        return [
+            timezone.localtime(completion).date().isoformat()
+            for completion in completions
+        ]
+
+
+class AllSuperChallengesCalendarSerializer(serializers.Serializer):
+    calendar_data = serializers.SerializerMethodField()
+
+    def get_calendar_data(self, obj):
+        request = self.context.get("request")
+        month = self.context.get("month")
+        year = self.context.get("year")
+
+        user_super_challenges = obj.get("user_super_challenges", [])
+
+        result = []
+        for user_super_challenge in user_super_challenges:
+            serializer = SuperChallengeCalendarSerializer(
+                user_super_challenge,
+                context={"request": request, "month": month, "year": year},
+            )
+            result.append(serializer.data)
+
+        return result
+
+
+class SuperChallengeAwardSerializer(serializers.ModelSerializer):
+    super_challenge_title = serializers.CharField(
+        source="super_challenge.title", read_only=True
+    )
+    award_icon = serializers.SerializerMethodField()
+    is_user_awarded = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SuperChallengeAward
+        fields = (
+            "id",
+            "super_challenge_title",
+            "award_icon",
+            "is_user_awarded",
+            "created_at",
+        )
+
+    def get_award_icon(self, obj):
+        request = self.context.get("request")
+        if obj.super_challenge.award_icon:
+            return request.build_absolute_uri(obj.super_challenge.award_icon.url)
+        return None
+
+    def get_is_user_awarded(self, obj):
+        return bool(getattr(obj, "_prefetched_user_awards", []))

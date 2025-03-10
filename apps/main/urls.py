@@ -1,19 +1,26 @@
 from django.urls import path
 
-from apps.main.views import (
+from apps.main.views import (  # Super Challenge views
     AllChallengesCalendarAPIView,
+    AllSuperChallengesCalendarAPIView,
     Challenge30DaysPlusStreakDetailView,
     Challenge30DaysPlusStreakView,
     ChallengeAwardListView,
     ChallengeCalendarAPIView,
     ChallengeLeaderboardAPIView,
     ChallengeListAPIView,
+    SuperChallengeAwardListView,
+    SuperChallengeCalendarAPIView,
+    SuperChallengeDetailAPIView,
+    SuperChallengeListAPIView,
     UpdateUserChallengeStreaksAPIView,
     UserChallengeCompletionAPIView,
     UserChallengeCreateAPIView,
     UserChallengeDeleteAPIView,
     UserChallengeDetailAPIView,
-    UserChallengeListAPIView
+    UserChallengeListAPIView,
+    UserSuperChallengeDetailAPIView,
+    UserSuperChallengeListAPIView,
 )
 
 app_name = "main"
@@ -81,5 +88,41 @@ urlpatterns = [
         "admin/update-streaks/",
         UpdateUserChallengeStreaksAPIView.as_view(),
         name="update-user-challenge-streaks",
+    ),
+    # Super Challenge URLs
+    path(
+        "super-challenges/",
+        SuperChallengeListAPIView.as_view(),
+        name="super-challenge-list",
+    ),
+    path(
+        "super-challenges/<int:id>/",
+        SuperChallengeDetailAPIView.as_view(),
+        name="super-challenge-detail",
+    ),
+    path(
+        "user-super-challenges/",
+        UserSuperChallengeListAPIView.as_view(),
+        name="user-super-challenge-list",
+    ),
+    path(
+        "user-super-challenges/<int:id>/",
+        UserSuperChallengeDetailAPIView.as_view(),
+        name="user-super-challenge-detail",
+    ),
+    path(
+        "user-super-challenges/<int:id>/calendar/",
+        SuperChallengeCalendarAPIView.as_view(),
+        name="user-super-challenge-calendar",
+    ),
+    path(
+        "super-challenges/calendar/",
+        AllSuperChallengesCalendarAPIView.as_view(),
+        name="all-super-challenges-calendar",
+    ),
+    path(
+        "super-challenges/awards/",
+        SuperChallengeAwardListView.as_view(),
+        name="super-challenge-awards",
     ),
 ]
