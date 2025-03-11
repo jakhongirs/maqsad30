@@ -228,7 +228,7 @@ CELERY_BEAT_SCHEDULE = {
     # Challenge notifications - run at 19:00 and 20:00
     "send-challenge-notifications-19": {
         "task": "apps.notification.tasks.send_challenge_notifications",
-        "schedule": crontab(hour=19, minute=30),
+        "schedule": crontab(hour=19, minute=40),
     },
     "send-challenge-notifications-20": {
         "task": "apps.notification.tasks.send_challenge_notifications",

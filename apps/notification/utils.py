@@ -68,7 +68,7 @@ def send_challenge_notification(user_challenge):
 
     # Create temporary message object
     temp_message = create_temp_message(
-        title=challenge.title, message_text=template.message, is_attach_link=False
+        title=challenge.title, message_text=template.message, is_attach_link=True
     )
 
     # Send notification
@@ -138,7 +138,7 @@ def send_super_challenge_general_notification(user_super_challenge):
     temp_message = create_temp_message(
         title=super_challenge.title,
         message_text=template.general_message,
-        is_attach_link=False,
+        is_attach_link=True,
     )
 
     # Send notification
@@ -222,7 +222,7 @@ def send_super_challenge_progress_notification(user_super_challenge):
 
     # Create temporary message object
     temp_message = create_temp_message(
-        title=super_challenge.title, message_text=message, is_attach_link=False
+        title=super_challenge.title, message_text=message, is_attach_link=True
     )
 
     # Send notification
