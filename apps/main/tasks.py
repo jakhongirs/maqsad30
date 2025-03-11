@@ -15,16 +15,19 @@ def update_all_user_challenge_streaks():
     This task is meant to be run daily to ensure streaks are properly updated
     even if users don't actively complete challenges.
     """
+    # Since this task runs at 00:05, we need to check completions for the previous day
     today = timezone.now().date()
+    yesterday = today - timezone.timedelta(days=1)
+    check_date = yesterday  # Use yesterday's date for streak updates
 
     # Get all active user challenges
     user_challenges = UserChallenge.objects.filter(is_active=True)
 
     updated_count = 0
     for user_challenge in user_challenges:
-        # Call the update_streak method with today's date
+        # Call the update_streak method with yesterday's date
         # This will recalculate streaks based on completion history
-        user_challenge.update_streak(today)
+        user_challenge.update_streak(check_date)
         updated_count += 1
 
     # Get all active user super challenges that haven't failed yet
@@ -46,7 +49,7 @@ def update_all_user_challenge_streaks():
             continue
 
         # If not failed, update the streak
-        user_super_challenge.update_streak(today)
+        user_super_challenge.update_streak(check_date)
         super_updated_count += 1
 
     # Also check for any challenges that were previously marked as failed

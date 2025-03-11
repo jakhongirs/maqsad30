@@ -555,30 +555,43 @@ class UserSuperChallenge(BaseModel):
         Check if all challenges in the super challenge were completed today
         """
         today = timezone.now().date()
+        return self.is_completed_for_date(today)
 
+    def is_completed_for_date(self, check_date):
+        """
+        Check if all challenges in the super challenge were completed on the specified date
+
+        Args:
+            check_date (date): The date to check completions for
+
+        Returns:
+            bool: True if all challenges were completed on the specified date, False otherwise
+        """
         # Get all challenges in this super challenge
         challenges = self.super_challenge.challenges.all()
 
-        # For each challenge, check if it was completed today
+        # For each challenge, check if it was completed on the specified date
         for challenge in challenges:
             # Get the user challenge for this challenge
             user_challenge = UserChallenge.objects.filter(
                 user=self.user, challenge=challenge, is_active=True
             ).first()
 
-            # If user challenge doesn't exist or wasn't completed today, return False
+            # If user challenge doesn't exist or wasn't completed on the specified date, return False
             if not user_challenge:
                 return False
 
-            # Check if this challenge was completed today
-            completed_today = UserChallengeCompletion.objects.filter(
-                user_challenge=user_challenge, completed_at__date=today, is_active=True
+            # Check if this challenge was completed on the specified date
+            completed_on_date = UserChallengeCompletion.objects.filter(
+                user_challenge=user_challenge,
+                completed_at__date=check_date,
+                is_active=True,
             ).exists()
 
-            if not completed_today:
+            if not completed_on_date:
                 return False
 
-        # If we get here, all challenges were completed today
+        # If we get here, all challenges were completed on the specified date
         return True
 
     def update_streak(self, completion_date):
