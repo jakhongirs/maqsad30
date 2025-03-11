@@ -400,15 +400,27 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
         )
 
     def get_challenges_count(self, obj):
-        return obj.challenges.count()
+        # Use prefetched challenges instead of making a new query
+        if hasattr(obj, "challenges") and hasattr(obj.challenges, "all"):
+            return obj.challenges.count()  # This uses the prefetched data
+        return 0  # Fallback if challenges not available
 
     def get_is_failed(self, obj):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
+        # Get user directly from context if available
+        user = self.context.get("user")
+        if not user or not user.is_authenticated:
             return False
 
+        # Use prefetched user_super_challenges if available
+        if hasattr(obj, "_prefetched_user_super_challenges"):
+            user_super_challenges = obj._prefetched_user_super_challenges
+            if user_super_challenges:
+                return user_super_challenges[0].is_failed
+            return False
+
+        # Fallback to database query if prefetched data is not available
         user_super_challenge = UserSuperChallenge.objects.filter(
-            user=request.user, super_challenge=obj, is_active=True
+            user=user, super_challenge=obj, is_active=True
         ).first()
 
         return user_super_challenge.is_failed if user_super_challenge else False
@@ -426,12 +438,13 @@ class SuperChallengeListSerializer(serializers.ModelSerializer):
 
         Returns None if the challenge hasn't failed.
         """
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
+        # Get user directly from context if available
+        user = self.context.get("user")
+        if not user or not user.is_authenticated:
             return None
 
         user_super_challenge = UserSuperChallenge.objects.filter(
-            user=request.user, super_challenge=obj, is_active=True
+            user=user, super_challenge=obj, is_active=True
         ).first()
 
         if not user_super_challenge or not user_super_challenge.is_failed:

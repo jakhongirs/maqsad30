@@ -433,9 +433,36 @@ class SuperChallengeListAPIView(ListAPIView):
 
     def get_queryset(self):
         today = timezone.now().date()
-        return SuperChallenge.objects.filter(
+
+        # Get the current user for optimization
+        user = self.request.user
+
+        # Use select_related and prefetch_related to optimize database queries
+        queryset = SuperChallenge.objects.filter(
             start_date__lte=today, end_date__gte=today
-        ).order_by("start_date")
+        ).prefetch_related(
+            "challenges"  # Prefetch challenges for get_challenges_count in serializer
+        )
+
+        # Prefetch user_super_challenges for the current user to optimize is_failed check
+        if user.is_authenticated:
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    "user_super_challenges",
+                    queryset=UserSuperChallenge.objects.filter(
+                        user=user, is_active=True
+                    ),
+                    to_attr="_prefetched_user_super_challenges",
+                )
+            )
+
+        return queryset.order_by("start_date")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        # Add user directly to context to avoid accessing request.user multiple times
+        context["user"] = self.request.user
+        return context
 
 
 class SuperChallengeDetailAPIView(RetrieveAPIView):
