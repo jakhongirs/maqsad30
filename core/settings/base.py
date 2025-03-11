@@ -40,6 +40,7 @@ CUSTOM_APPS = [
     "apps.onboarding",
     "apps.main",
     "apps.telegram_bot",
+    "apps.notification",
 ]
 
 THIRD_PARTY_APPS = [
@@ -223,7 +224,26 @@ CELERY_BEAT_SCHEDULE = {
     "update-user-challenge-streaks": {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
         "schedule": crontab(hour=0, minute=5),
-    }
+    },
+    # Challenge notifications - run at 19:00 and 20:00
+    "send-challenge-notifications-19": {
+        "task": "apps.notification.tasks.send_challenge_notifications",
+        "schedule": crontab(hour=19, minute=0),
+    },
+    "send-challenge-notifications-20": {
+        "task": "apps.notification.tasks.send_challenge_notifications",
+        "schedule": crontab(hour=20, minute=0),
+    },
+    # Super challenge general notifications - run once a day at 20:00
+    "send-super-challenge-general-notifications": {
+        "task": "apps.notification.tasks.send_super_challenge_general_notifications",
+        "schedule": crontab(hour=21, minute=0),
+    },
+    # Send super challenge progress notifications - run once a day at 00:10
+    "send-super-challenge-progress-notifications": {
+        "task": "apps.notification.tasks.send_super_challenge_progress_notifications",
+        "schedule": crontab(hour=0, minute=10),
+    },
 }
 
 sentry_sdk.init(
