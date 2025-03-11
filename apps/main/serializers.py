@@ -689,12 +689,18 @@ class SuperChallengeLeaderboardSerializer(serializers.ModelSerializer):
     def get_user(self, obj):
         request = self.context.get("request")
         user = obj.user
+
+        # Prepare photo URL only once
+        photo_url = None
+        if user.telegram_photo:
+            photo_url = request.build_absolute_uri(user.telegram_photo.url)
+        else:
+            photo_url = user.telegram_photo_url
+
         return {
             "id": user.id,
             "first_name": user.first_name,
             "last_name": user.last_name,
             "telegram_username": user.telegram_username,
-            "telegram_photo": request.build_absolute_uri(user.telegram_photo.url)
-            if user.telegram_photo
-            else user.telegram_photo_url,
+            "telegram_photo": photo_url,
         }

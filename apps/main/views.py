@@ -613,9 +613,24 @@ class SuperChallengeLeaderboardAPIView(ListAPIView):
 
     def get_queryset(self):
         super_challenge_id = self.kwargs["id"]
-        return UserSuperChallenge.objects.filter(
-            super_challenge_id=super_challenge_id, is_active=True
-        ).order_by("-highest_streak", "-total_completions")
+        return (
+            UserSuperChallenge.objects.filter(
+                super_challenge_id=super_challenge_id, is_active=True
+            )
+            .select_related("user")  # Prefetch user data to avoid N+1 queries
+            .only(
+                "id",
+                "highest_streak",
+                "last_completion_date",
+                "user__id",
+                "user__first_name",
+                "user__last_name",
+                "user__telegram_username",
+                "user__telegram_photo",
+                "user__telegram_photo_url",
+            )  # Only fetch the fields we need
+            .order_by("-highest_streak", "last_completion_date")
+        )
 
 
 class GenerateSuperChallengeDataAPIView(APIView):
