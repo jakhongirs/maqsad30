@@ -5,6 +5,7 @@ from .views import (
     LoadTimezoneDataAPIView,
     TelegramUserRegistrationView,
     TimezoneListAPIView,
+    UpdateChannelMembershipAPIView,
     UserProfileRetrieveAPIView,
     UserProfileUpdateAPIView,
 )
@@ -29,5 +30,10 @@ urlpatterns = [
         "telegram/check-channel-membership/",
         CheckChannelMembershipAPIView.as_view(),
         name="check-channel-membership",
+    ),
+    path(
+        "update-channel-membership/",
+        UpdateChannelMembershipAPIView.as_view(),
+        name="update-channel-membership",
     ),
 ]

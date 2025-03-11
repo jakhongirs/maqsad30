@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.users.models import Timezone, User
 from apps.users.permissions import IsTelegramUser
+from apps.users.tasks import update_channel_membership_status
 
 from .serializers import (
     TelegramUserSerializer,
@@ -196,3 +197,21 @@ class CheckChannelMembershipAPIView(APIView):
             is_member = False
 
         return Response({"is_member": is_member})
+
+
+class UpdateChannelMembershipAPIView(APIView):
+    """
+    API endpoint to manually trigger the update of Telegram channel membership status for all users.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        task = update_channel_membership_status.delay()
+        return Response(
+            {
+                "status": "success",
+                "message": "Channel membership status update task has been queued",
+                "task_id": task.id,
+            }
+        )
