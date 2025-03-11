@@ -14,7 +14,7 @@ def update_channel_membership_status():
     """
     Update Telegram channel membership status for all users.
     This task is scheduled to run once a day at midnight.
-    By default, users are considered channel members unless confirmed otherwise.
+    Updates the status for each user based on their current channel membership.
     """
     logger.info("Starting channel membership status update task")
 
@@ -37,17 +37,19 @@ def update_channel_membership_status():
             response = requests.get(url, params=params)
             data = response.json()
 
-            is_member = True  # Default to True
+            is_member = False  # Default to False
             if "result" in data and "status" in data["result"]:
                 member_status = data["result"]["status"]
                 is_member = member_status in ["member", "administrator", "creator"]
 
-            # Only update if the user is confirmed not to be a member and their status is currently True
-            if not is_member and user.is_telegram_channel_member:
-                user.is_telegram_channel_member = False
+            # Update status if it's different from current status
+            if user.is_telegram_channel_member != is_member:
+                user.is_telegram_channel_member = is_member
                 user.save(update_fields=["is_telegram_channel_member"])
                 updated_count += 1
-                logger.info(f"User {user.id} confirmed not to be a channel member")
+                logger.info(
+                    f"User {user.id} channel membership status updated to {is_member}"
+                )
 
         except Exception as e:
             logger.error(f"Error checking channel membership for user {user.id}: {e}")
