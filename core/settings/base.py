@@ -228,7 +228,7 @@ CELERY_BEAT_SCHEDULE = {
     # Challenge notifications - run at 19:00 and 20:00
     "send-challenge-notifications-19": {
         "task": "apps.notification.tasks.send_challenge_notifications",
-        "schedule": crontab(hour=19, minute=0),
+        "schedule": crontab(hour=19, minute=30),
     },
     "send-challenge-notifications-20": {
         "task": "apps.notification.tasks.send_challenge_notifications",
@@ -242,7 +242,7 @@ CELERY_BEAT_SCHEDULE = {
     # Send super challenge progress notifications - run once a day at 00:10
     "send-super-challenge-progress-notifications": {
         "task": "apps.notification.tasks.send_super_challenge_progress_notifications",
-        "schedule": crontab(hour=0, minute=10),
+        "schedule": crontab(hour=0, minute=30),
     },
 }
 

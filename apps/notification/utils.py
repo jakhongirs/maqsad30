@@ -183,11 +183,23 @@ def send_super_challenge_progress_notification(user_super_challenge):
         )
         return False
 
+    # Get current date and previous date
+    current_date = timezone.localtime().date()
+    previous_date = current_date - timezone.timedelta(days=1)
+
     # Determine which message to send based on failure status
     if user_super_challenge.is_failed:
         message = template.failure_message
         notification_type = "super_challenge_failure"
     else:
+        # Check if the user completed the challenge on the previous day
+        # If they did, we don't need to send a warning message
+        if user_super_challenge.is_completed_for_date(previous_date):
+            logger.info(
+                f"Skipping warning notification for user {user.id} - completed super challenge yesterday"
+            )
+            return False
+
         message = template.progress_warning_message
         notification_type = "super_challenge_warning"
 
@@ -258,11 +270,22 @@ def should_send_super_challenge_notification(
     # Get current date and time
     now = timezone.localtime()
     current_date = now.date()
+    previous_date = current_date - timezone.timedelta(days=1)
 
-    # Check if super challenge is active for the current date
+    # Check if super challenge is active for the current date or was active for the previous date
     super_challenge = user_super_challenge.super_challenge
-    if not (super_challenge.start_date <= current_date <= super_challenge.end_date):
-        return False
+
+    # For progress notifications (warnings and failures), we need to check if the challenge
+    # was active yesterday, since we're checking for yesterday's completions
+    if notification_type in ["super_challenge_warning", "super_challenge_failure"]:
+        if not (
+            super_challenge.start_date <= previous_date <= super_challenge.end_date
+        ):
+            return False
+    else:
+        # For general notifications, check if the challenge is active today
+        if not (super_challenge.start_date <= current_date <= super_challenge.end_date):
+            return False
 
     # Check if notification of this specific type has already been sent today
     already_sent = NotificationLog.objects.filter(

@@ -80,23 +80,25 @@ def send_super_challenge_progress_notifications():
     """
     logger.info("Starting super challenge progress notification task")
 
-    # Get current date
+    # Get current date and previous date
     current_date = timezone.localtime().date()
+    previous_date = current_date - timezone.timedelta(days=1)
 
     # Get all active user super challenges
     user_super_challenges = UserSuperChallenge.objects.filter(
         Q(is_active=True) | Q(is_failed=True),
         super_challenge__notification_template__is_active=True,
-        super_challenge__start_date__lte=current_date,
-        super_challenge__end_date__gte=current_date,
+        super_challenge__start_date__lte=previous_date,
+        super_challenge__end_date__gte=previous_date,
     ).select_related(
         "user", "super_challenge", "super_challenge__notification_template"
     )
 
     sent_count = 0
     for user_super_challenge in user_super_challenges:
-        # Check if user completed all challenges today
-        if not user_super_challenge.is_completed_today():
+        # Check if user completed all challenges yesterday
+        # We'll need to modify the is_completed_today method to accept a date parameter
+        if not user_super_challenge.is_completed_for_date(previous_date):
             # Send progress notification
             success = send_super_challenge_progress_notification(user_super_challenge)
             if success:
