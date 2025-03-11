@@ -10,8 +10,27 @@ from apps.notification.models import (
 )
 from apps.telegram_bot.models import CustomMessage
 from apps.telegram_bot.utils import send_broadcast
+from apps.users.models import User
 
 logger = logging.getLogger(__name__)
+
+
+def is_channel_member(telegram_id):
+    """
+    Check if a user is a member of the specified Telegram channel.
+    Uses the cached value from the database instead of making an API call.
+
+    Args:
+        telegram_id: The Telegram user ID to check
+
+    Returns:
+        bool: True if the user is a member of the channel, False otherwise
+    """
+    try:
+        user = User.objects.get(telegram_id=telegram_id)
+        return user.is_telegram_channel_member
+    except User.DoesNotExist:
+        return False
 
 
 def create_temp_message(title, message_text, is_attach_link=False):
@@ -47,6 +66,11 @@ def send_challenge_notification(user_challenge):
 
     # Skip if user doesn't have a Telegram ID
     if not user.telegram_id:
+        return False
+
+    # Skip if user is not a channel member
+    if not is_channel_member(user.telegram_id):
+        logger.info(f"Skipping notification for user {user.id} - not a channel member")
         return False
 
     # Get notification template
@@ -99,6 +123,11 @@ def send_super_challenge_general_notification(user_super_challenge):
 
     # Skip if user doesn't have a Telegram ID
     if not user.telegram_id:
+        return False
+
+    # Skip if user is not a channel member
+    if not is_channel_member(user.telegram_id):
+        logger.info(f"Skipping notification for user {user.id} - not a channel member")
         return False
 
     # Skip if user has failed the super challenge
@@ -170,6 +199,11 @@ def send_super_challenge_progress_notification(user_super_challenge):
 
     # Skip if user doesn't have a Telegram ID
     if not user.telegram_id:
+        return False
+
+    # Skip if user is not a channel member
+    if not is_channel_member(user.telegram_id):
+        logger.info(f"Skipping notification for user {user.id} - not a channel member")
         return False
 
     # Get notification template

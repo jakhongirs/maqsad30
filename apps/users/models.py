@@ -67,6 +67,13 @@ class User(AbstractUser, BaseModel):
     is_onboarding_finished = models.BooleanField(
         _("Is onboarding finished"), default=False
     )
+    is_telegram_channel_member = models.BooleanField(
+        _("Is Telegram Channel Member"),
+        default=True,
+        help_text=_(
+            "Indicates whether the user is a member of the Telegram channel. Defaults to True and is set to False when confirmed not a member."
+        ),
+    )
     objects = SoftDeleteUserManager()
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

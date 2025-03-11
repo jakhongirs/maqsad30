@@ -221,6 +221,11 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 CELERY_BEAT_SCHEDULE = {
+    # Update channel membership status - run once a day at midnight
+    "update-channel-membership-status": {
+        "task": "apps.users.tasks.update_channel_membership_status",
+        "schedule": crontab(hour=0, minute=0),
+    },
     "update-user-challenge-streaks": {
         "task": "apps.main.tasks.update_all_user_challenge_streaks",
         "schedule": crontab(hour=0, minute=5),
