@@ -246,11 +246,22 @@ def should_send_challenge_notification(user_challenge):
         user_challenge (UserChallenge): User challenge object
 
     Returns:
-        bool: Always returns True since notifications are now scheduled at exact times
+        bool: True if notification should be sent, False otherwise
     """
-    # Since we're scheduling the task to run exactly at challenge start times (19:00 and 20:00),
-    # we don't need to check the time difference anymore
-    return True
+    # Get current date
+    current_date = timezone.localtime().date()
+
+    # Check if notification has already been sent today
+    already_sent = NotificationLog.objects.filter(
+        user=user_challenge.user,
+        challenge=user_challenge.challenge,
+        notification_type="challenge",
+        sent_at__date=current_date,
+        is_sent=True,
+    ).exists()
+
+    # Only send if not already sent today
+    return not already_sent
 
 
 def should_send_super_challenge_notification(

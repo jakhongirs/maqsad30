@@ -19,14 +19,36 @@ logger = logging.getLogger(__name__)
 def send_challenge_notifications():
     """
     Send notifications for all active challenges.
-    This task is scheduled to run at specific times (19:00 and 20:00).
+    This task is scheduled to run at specific times (05:00, 19:00 and 20:00).
+    It will only send notifications for challenges that start at the current hour.
     """
     logger.info("Starting challenge notification task")
 
-    # Get all active user challenges
+    # Get current hour
+    current_hour = timezone.localtime().hour
+
+    # Map scheduled task hours to challenge start times
+    # This handles the case where the task runs at 21:00 but we want to notify for 20:00 challenges
+    notification_hour_mapping = {
+        5: 5,  # 05:00 task notifies for 05:00 challenges
+        19: 19,  # 19:00 task notifies for 19:00 challenges
+        20: 20,  # 20:00 task notifies for 20:00 challenges
+    }
+
+    # Get the target hour for challenge start times
+    target_hour = notification_hour_mapping.get(current_hour)
+
+    if target_hour is None:
+        logger.warning(f"No target hour mapping for current hour {current_hour}")
+        return 0
+
+    logger.info(f"Sending notifications for challenges starting at {target_hour}:00")
+
+    # Get all active user challenges with the matching start time hour
     user_challenges = UserChallenge.objects.filter(
         is_active=True,
         challenge__notification_template__is_active=True,
+        challenge__start_time__hour=target_hour,
     ).select_related("user", "challenge", "challenge__notification_template")
 
     sent_count = 0
@@ -36,7 +58,9 @@ def send_challenge_notifications():
             if success:
                 sent_count += 1
 
-    logger.info(f"Sent {sent_count} challenge notifications")
+    logger.info(
+        f"Sent {sent_count} challenge notifications for {target_hour}:00 challenges"
+    )
     return sent_count
 
 
