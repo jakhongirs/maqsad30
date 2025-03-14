@@ -241,9 +241,14 @@ def send_super_challenge_progress_notification(user_super_challenge):
     if not should_send_super_challenge_notification(
         user_super_challenge, notification_type
     ):
-        logger.info(
-            f"Skipping {notification_type} notification for user {user.id} - already sent today"
-        )
+        if notification_type == "super_challenge_failure":
+            logger.info(
+                f"Skipping failure notification for user {user.id} - failure notification already sent previously"
+            )
+        else:
+            logger.info(
+                f"Skipping {notification_type} notification for user {user.id} - already sent today"
+            )
         return False
 
     # Create notification log
@@ -332,13 +337,23 @@ def should_send_super_challenge_notification(
         if not (super_challenge.start_date <= current_date <= super_challenge.end_date):
             return False
 
-    # Check if notification of this specific type has already been sent today
-    already_sent = NotificationLog.objects.filter(
-        user=user_super_challenge.user,
-        super_challenge=super_challenge,
-        notification_type=notification_type,
-        sent_at__date=current_date,
-        is_sent=True,
-    ).exists()
+    # For failure notifications, check if it has ever been sent before
+    # This ensures we only send the failure notification once
+    if notification_type == "super_challenge_failure":
+        already_sent = NotificationLog.objects.filter(
+            user=user_super_challenge.user,
+            super_challenge=super_challenge,
+            notification_type=notification_type,
+            is_sent=True,
+        ).exists()
+    else:
+        # For other notification types, check if it has been sent today
+        already_sent = NotificationLog.objects.filter(
+            user=user_super_challenge.user,
+            super_challenge=super_challenge,
+            notification_type=notification_type,
+            sent_at__date=current_date,
+            is_sent=True,
+        ).exists()
 
     return not already_sent
